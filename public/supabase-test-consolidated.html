@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Test - Consolidated Environment</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .test-input { padding: 8px; width: 200px; border: 1px solid #ddd; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Supabase Test - Consolidated Environment</h1>
+        <p>Testing consolidated environment configuration with root .env file</p>
+        
+        <div class="test-section">
+            <h3>Environment Variables from .env file</h3>
+            <pre id="env-info">Loading...</pre>
+        </div>
+
+        <div class="test-section">
+            <h3>Supabase Connection Tests</h3>
+            <button onclick="testAnonConnection()">Test Anon Key Connection</button>
+            <button onclick="testServiceRoleConnection()">Test Service Role Key Connection</button>
+            <button onclick="testCitizenQuery()">Test Citizen Query</button>
+            <div id="connection-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>National ID Lookup Test</h3>
+            <input type="text" id="nationalIdInput" class="test-input" placeholder="Enter National ID (e.g., 1234567890123)">
+            <button onclick="testNationalIdLookup()">Test Lookup</button>
+            <div id="lookup-results"></div>
+        </div>
+    </div>
+
+    <script>
+        // Test environment variables (these should come from Next.js build process in production)
+        const envConfig = {
+            url: 'https://jfaqmpfvbeovprtcbztn.supabase.co', // From root .env file
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmYXFtcGZ2YmVvdnBydGNienRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyMDcxMzEsImV4cCI6MjA2Njc4MzEzMX0.12023Uc4hbeh-BuyyO3yIWqyD7Ub0YTPtKeTIlCYnnI',
+            serviceRoleKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmYXFtcGZ2YmVvdnBydGNienRuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTIwNzEzMSwiZXhwIjoyMDY2NzgzMTMxfQ.2mbL2XjXt_UscgLuyLUxzG3A0asQQ9ZrDrH1jwtKIDQ'
+        };
+
+        // Display environment info
+        document.getElementById('env-info').textContent = JSON.stringify({
+            supabaseUrl: envConfig.url,
+            anonKeyPresent: !!envConfig.anonKey,
+            anonKeyPrefix: envConfig.anonKey ? envConfig.anonKey.substring(0, 20) + '...' : 'missing',
+            serviceRoleKeyPresent: !!envConfig.serviceRoleKey,
+            serviceRoleKeyPrefix: envConfig.serviceRoleKey ? envConfig.serviceRoleKey.substring(0, 20) + '...' : 'missing'
+        }, null, 2);
+
+        let anonClient = null;
+        let serviceRoleClient = null;
+
+        async function testAnonConnection() {
+            const results = document.getElementById('connection-results');
+            try {
+                anonClient = supabase.createClient(envConfig.url, envConfig.anonKey);
+                
+                // Test basic connection
+                const { data, error } = await anonClient.from('citizens').select('count').limit(1);
+                
+                if (error) {
+                    results.innerHTML = `<div class="error">❌ Anon connection failed: ${error.message}</div>`;
+                } else {
+                    results.innerHTML = `<div class="success">✅ Anon key connection successful</div>`;
+                }
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Anon connection error: ${error.message}</div>`;
+            }
+        }
+
+        async function testServiceRoleConnection() {
+            const results = document.getElementById('connection-results');
+            try {
+                serviceRoleClient = supabase.createClient(envConfig.url, envConfig.serviceRoleKey);
+                
+                // Test basic connection with service role
+                const { data, error } = await serviceRoleClient.from('citizens').select('count').limit(1);
+                
+                if (error) {
+                    results.innerHTML += `<div class="error">❌ Service role connection failed: ${error.message}</div>`;
+                } else {
+                    results.innerHTML += `<div class="success">✅ Service role key connection successful</div>`;
+                }
+            } catch (error) {
+                results.innerHTML += `<div class="error">❌ Service role connection error: ${error.message}</div>`;
+            }
+        }
+
+        async function testCitizenQuery() {
+            const results = document.getElementById('connection-results');
+            if (!serviceRoleClient) {
+                results.innerHTML += `<div class="error">❌ Service role client not initialized. Test connection first.</div>`;
+                return;
+            }
+
+            try {
+                const { data: citizens, error } = await serviceRoleClient
+                    .from('citizens')
+                    .select('*')
+                    .limit(5);
+                
+                if (error) {
+                    results.innerHTML += `<div class="error">❌ Citizens query failed: ${error.message}</div>`;
+                } else {
+                    results.innerHTML += `<div class="success">✅ Citizens query successful. Found ${citizens.length} records.</div>`;
+                    results.innerHTML += `<pre>${JSON.stringify(citizens, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                results.innerHTML += `<div class="error">❌ Citizens query error: ${error.message}</div>`;
+            }
+        }
+
+        async function testNationalIdLookup() {
+            const nationalId = document.getElementById('nationalIdInput').value.trim();
+            const results = document.getElementById('lookup-results');
+            
+            if (!nationalId) {
+                results.innerHTML = `<div class="error">❌ Please enter a National ID</div>`;
+                return;
+            }
+
+            if (!serviceRoleClient) {
+                await testServiceRoleConnection();
+            }
+
+            try {
+                console.log('🔍 Looking up National ID:', nationalId);
+                
+                const { data: citizen, error } = await serviceRoleClient
+                    .from('citizens')
+                    .select('*')
+                    .eq('national_id', nationalId)
+                    .eq('status', 'ACTIVE')
+                    .single();
+                
+                console.log('🔍 Query result:', { citizen, error });
+                
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        results.innerHTML = `<div class="error">❌ National ID not found: ${nationalId}</div>`;
+                    } else {
+                        results.innerHTML = `<div class="error">❌ Query failed: ${error.message}</div>`;
+                    }
+                } else {
+                    results.innerHTML = `<div class="success">✅ National ID found!</div>`;
+                    results.innerHTML += `<pre>${JSON.stringify(citizen, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Lookup error: ${error.message}</div>`;
+            }
+        }
+
+        // Auto-run connection tests on page load
+        window.onload = async () => {
+            await testAnonConnection();
+            await testServiceRoleConnection();
+        };
+    </script>
+</body>
+</html>

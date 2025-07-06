@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  esignet_postgres:
+    image: postgres:14
+    container_name: esignet_postgres
+    environment:
+      POSTGRES_DB: esignet
+      POSTGRES_USER: esignet
+      POSTGRES_PASSWORD: esignet123
+    ports:
+      - '5433:5432'
+    volumes:
+      - esignet_postgres_data:/var/lib/postgresql/data
+    networks:
+      - esignet_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U esignet']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis Cache
+  esignet_redis:
+    image: redis:7-alpine
+    container_name: esignet_redis
+    ports:
+      - '6380:6379'
+    volumes:
+      - esignet_redis_data:/data
+    networks:
+      - esignet_network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Mock Identity Service
+  mock_identity_system:
+    image: node:18-alpine
+    container_name: mock_identity_system
+    working_dir: /app
+    command: sh -c "apk add --no-cache curl && npm install express cors && node server.js"
+    ports:
+      - '8088:8088'
+    volumes:
+      - ./mock-server:/app
+    networks:
+      - esignet_network
+    depends_on:
+      - esignet_postgres
+      - esignet_redis
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsSL http://localhost:8088/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Mock eSignet Backend
+  esignet_backend:
+    image: node:18-alpine
+    container_name: esignet_backend
+    working_dir: /app
+    command: sh -c "apk add --no-cache curl && npm install express cors && node esignet-server.js"
+    ports:
+      - '8089:8089'
+    volumes:
+      - ./mock-server:/app
+    networks:
+      - esignet_network
+    depends_on:
+      - mock_identity_system
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsSL http://localhost:8089/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  esignet_postgres_data: {}
+  esignet_redis_data: {}
+
+networks:
+  esignet_network:
+    driver: bridge

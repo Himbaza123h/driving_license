@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Button State Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .button-test { 
+            padding: 10px 20px; 
+            margin: 10px; 
+            border: 1px solid #ccc; 
+            background: #007bff; 
+            color: white; 
+            cursor: pointer; 
+        }
+        .button-test:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed; 
+            opacity: 0.5; 
+        }
+        .input-test { 
+            padding: 8px; 
+            margin: 5px; 
+            border: 1px solid #ccc; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Button State Test</h1>
+    
+    <div>
+        <label for="testInput">Test Input (16 chars max):</label><br>
+        <input type="text" id="testInput" class="input-test" placeholder="Enter text..." maxlength="16">
+    </div>
+    
+    <div>
+        <button id="testButton" class="button-test" disabled>Test Button</button>
+    </div>
+    
+    <div>
+        <h3>Debug Info:</h3>
+        <div id="debugInfo"></div>
+    </div>
+
+    <script>
+        const input = document.getElementById('testInput');
+        const button = document.getElementById('testButton');
+        const debugInfo = document.getElementById('debugInfo');
+
+        function updateButtonState() {
+            const value = input.value;
+            const disabled = !value || value.length !== 16;
+            button.disabled = disabled;
+            
+            debugInfo.innerHTML = `
+                <p>Input value: "${value}"</p>
+                <p>Value length: ${value.length}</p>
+                <p>Has value: ${!!value}</p>
+                <p>Is 16 chars: ${value.length === 16}</p>
+                <p>Button disabled: ${disabled}</p>
+            `;
+        }
+
+        input.addEventListener('input', updateButtonState);
+        button.addEventListener('click', () => {
+            alert('Button clicked! Value: ' + input.value);
+        });
+
+        // Initial state
+        updateButtonState();
+    </script>
+</body>
+</html>

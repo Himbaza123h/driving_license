@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        button {
+            padding: 10px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .result {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .error {
+            color: red;
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .success {
+            color: green;
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .input-field {
+            width: 300px;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>CORS and API Test Tool</h1>
+    
+    <div>
+        <h2>Backend Configuration</h2>
+        <input type="text" id="backendUrl" placeholder="Backend URL" value="http://localhost:8090/api" class="input-field">
+    </div>
+    
+    <div>
+        <h2>Test Endpoints</h2>
+        <button onclick="testHealth()">Test Health Endpoint</button>
+        <button onclick="testOptions()">Test OPTIONS Request</button>
+        <button onclick="testFetch()">Test Basic Fetch</button>
+        <button onclick="testCorsWithCredentials()">Test With Credentials</button>
+        <button onclick="testXhr()">Test with XMLHttpRequest</button>
+    </div>
+    
+    <div>
+        <h2>API Tests</h2>
+        <div>
+            <button onclick="testInitiateAuth()">1. Initiate Auth</button>
+            <button onclick="testSendOtp()">2. Send OTP</button>
+            <button onclick="testVerifyOtp()">3. Verify OTP</button>
+        </div>
+    </div>
+    
+    <div>
+        <h2>Results</h2>
+        <div id="result" class="result">Results will appear here...</div>
+    </div>
+    
+    <script>
+        // Get the backend URL
+        function getBackendUrl() {
+            return document.getElementById('backendUrl').value;
+        }
+        
+        // Display results
+        function displayResult(data, isError = false) {
+            const resultDiv = document.getElementById('result');
+            if (isError) {
+                resultDiv.innerHTML = `<div class="error">${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}</div>`;
+            } else {
+                resultDiv.innerHTML = `<div class="success">${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}</div>`;
+            }
+        }
+        
+        // Test the health endpoint
+        async function testHealth() {
+            try {
+                const url = `${getBackendUrl()}/health`;
+                displayResult(`Testing health endpoint: ${url}`);
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                displayResult({
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries([...response.headers.entries()]),
+                    data
+                });
+            } catch (error) {
+                displayResult({
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        // Test OPTIONS request
+        async function testOptions() {
+            try {
+                const url = `${getBackendUrl()}/auth/initiate`;
+                displayResult(`Testing OPTIONS request to: ${url}`);
+                
+                const response = await fetch(url, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin
+                    }
+                });
+                
+                displayResult({
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries([...response.headers.entries()])
+                });
+            } catch (error) {
+                displayResult({
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        // Test basic fetch
+        async function testFetch() {
+            try {
+                const url = `${getBackendUrl()}/health`;
+                displayResult(`Testing basic fetch to: ${url}`);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                const data = await response.json();
+                
+                displayResult({
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries([...response.headers.entries()]),
+                    data
+                });
+            } catch (error) {
+                displayResult({
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        // Test with credentials
+        async function testCorsWithCredentials() {
+            try {
+                const url = `${getBackendUrl()}/health`;
+                displayResult(`Testing fetch with credentials to: ${url}`);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include',
+                    mode: 'cors'
+                });
+                
+                const data = await response.json();
+                
+                displayResult({
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries([...response.headers.entries()]),
+                    data
+                });
+            } catch (error) {
+                displayResult({
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        // Test with XMLHttpRequest
+        function testXhr() {
+            try {
+                const url = `${getBackendUrl()}/health`;
+                displayResult(`Testing XMLHttpRequest to: ${url}`);
+                
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.setRequestHeader('Accept', 'application/json');
+                xhr.withCredentials = true;
+                
+                xhr.onload = function() {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        displayResult({
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            headers: xhr.getAllResponseHeaders(),
+                            data: JSON.parse(xhr.responseText)
+                        });
+                    } else {
+                        displayResult({
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            headers: xhr.getAllResponseHeaders(),
+                            error: xhr.responseText
+                        }, true);
+                    }
+                };
+                
+                xhr.onerror = function() {
+                    displayResult({
+                        error: 'Network error occurred',
+                        status: xhr.status,
+                        statusText: xhr.statusText
+                    }, true);
+                };
+                
+                xhr.send();
+            } catch (error) {
+                displayResult({
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        // Test Step 1: Initiate Auth
+        async function testInitiateAuth() {
+            try {
+                const url = `${getBackendUrl()}/auth/initiate`;
+                const nationalId = '1198700123456'; // Test ID
+                
+                displayResult(`Testing initiate auth at: ${url} with ID: ${nationalId}`);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ nationalId })
+                });
+                
+                const data = await response.json();
+                
+                // Store transaction ID for next step
+                if (data.transactionId) {
+                    localStorage.setItem('testTransactionId', data.transactionId);
+                }
+                
+                displayResult({
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries([...response.headers.entries()]),
+                    data
+                });
+            } catch (error) {
+                displayResult({
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        // Test Step 2: Send OTP
+        async function testSendOtp() {
+            try {
+                const url = `${getBackendUrl()}/auth/send-otp`;
+                const transactionId = localStorage.getItem('testTransactionId');
+                
+                if (!transactionId) {
+                    return displayResult('No transaction ID found. Run "Initiate Auth" first.', true);
+                }
+                
+                displayResult(`Testing send OTP at: ${url} with transaction ID: ${transactionId}`);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ transactionId })
+                });
+                
+                const data = await response.json();
+                
+                displayResult({
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries([...response.headers.entries()]),
+                    data
+                });
+            } catch (error) {
+                displayResult({
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        // Test Step 3: Verify OTP
+        async function testVerifyOtp() {
+            try {
+                const url = `${getBackendUrl()}/auth/verify-otp`;
+                const transactionId = localStorage.getItem('testTransactionId');
+                const otp = '123456'; // Test OTP
+                
+                if (!transactionId) {
+                    return displayResult('No transaction ID found. Run "Initiate Auth" first.', true);
+                }
+                
+                displayResult(`Testing verify OTP at: ${url} with transaction ID: ${transactionId} and OTP: ${otp}`);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ transactionId, otp })
+                });
+                
+                const data = await response.json();
+                
+                displayResult({
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries([...response.headers.entries()]),
+                    data
+                });
+            } catch (error) {
+                displayResult({
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+[
+  {
+    "national_id": "1234567890123456",
+    "full_name": "Jean Baptiste Ndayisenga",
+    "date_of_birth": "1990-05-15",
+    "address": "Avenue de la Révolution, Bujumbura, Burundi",
+    "phone_number": "+257 79 123 456",
+    "email": "jean.baptiste@email.bi",
+    "photo_filename": "jean_baptiste.jpg",
+    "status": "ACTIVE"
+  },
+  {
+    "national_id": "9876543210987654",
+    "full_name": "Marie Claire Uwimana",
+    "date_of_birth": "1985-08-22",
+    "address": "Quartier Rohero, Bujumbura, Burundi", 
+    "phone_number": "+257 79 987 654",
+    "email": "marie.claire@email.bi",
+    "photo_filename": "marie_claire.jpg",
+    "status": "ACTIVE"
+  },
+  {
+    "national_id": "1111222233334444",
+    "full_name": "Pierre Nkurunziza",
+    "date_of_birth": "1988-03-10",
+    "address": "Quartier Buyenzi, Bujumbura, Burundi",
+    "phone_number": "+257 79 111 222",
+    "email": "pierre.nkurunziza@email.bi", 
+    "photo_filename": "pierre_nkurunziza.jpg",
+    "status": "ACTIVE"
+  },
+  {
+    "national_id": "5555666677778888",
+    "full_name": "Esperance Barayandema",
+    "date_of_birth": "1992-11-30",
+    "address": "Quartier Ngagara, Bujumbura, Burundi",
+    "phone_number": "+257 79 555 666",
+    "email": "esperance.barayandema@email.bi",
+    "photo_filename": "esperance_barayandema.jpg",
+    "status": "ACTIVE"
+  },
+  {
+    "national_id": "2222333344445555",
+    "full_name": "Emmanuel Ntahomvukiye",
+    "date_of_birth": "1987-07-14",
+    "address": "Quartier Kamenge, Bujumbura, Burundi",
+    "phone_number": "+257 79 222 333",
+    "email": "emmanuel.ntahomvukiye@email.bi",
+    "photo_filename": "emmanuel_ntahomvukiye.jpg",
+    "status": "ACTIVE"
+  },
+  {
+    "national_id": "7777888899990000",
+    "full_name": "Chantal Mukamana",
+    "date_of_birth": "1991-12-25",
+    "address": "Quartier Mutanga, Bujumbura, Burundi",
+    "phone_number": "+257 79 777 888",
+    "email": "chantal.mukamana@email.bi",
+    "photo_filename": "chantal_mukamana.jpg",
+    "status": "ACTIVE"
+  },
+  {
+    "national_id": "3333444455556666",
+    "full_name": "Joseph Bigirimana",
+    "date_of_birth": "1986-09-18",
+    "address": "Quartier Cibitoke, Bujumbura, Burundi",
+    "phone_number": "+257 79 333 444",
+    "email": "joseph.bigirimana@email.bi",
+    "photo_filename": "joseph_bigirimana.jpg",
+    "status": "ACTIVE"
+  },
+  {
+    "national_id": "8888999900001111",
+    "full_name": "Agnes Niyonkuru",
+    "date_of_birth": "1993-04-08",
+    "address": "Quartier Kanyosha, Bujumbura, Burundi",
+    "phone_number": "+257 79 888 999",
+    "email": "agnes.niyonkuru@email.bi",
+    "photo_filename": "agnes_niyonkuru.jpg",
+    "status": "ACTIVE"
+  },
+  {
+    "national_id": "4444555566667777",
+    "full_name": "David Ntihabose",
+    "date_of_birth": "1989-06-12",
+    "address": "Quartier Musaga, Bujumbura, Burundi", 
+    "phone_number": "+257 79 444 555",
+    "email": "david.ntihabose@email.bi",
+    "photo_filename": "david_ntihabose.jpg",
+    "status": "ACTIVE"
+  },
+  {
+    "national_id": "9999000011112222",
+    "full_name": "Immaculee Ndayishimiye",
+    "date_of_birth": "1994-01-20",
+    "address": "Quartier Nyakabiga, Bujumbura, Burundi",
+    "phone_number": "+257 79 999 000", 
+    "email": "immaculee.ndayishimiye@email.bi",
+    "photo_filename": "immaculee_ndayishimiye.jpg",
+    "status": "ACTIVE"
+  }
+]

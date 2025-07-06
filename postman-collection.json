@@ -1,0 +1,161 @@
+{
+  "info": {
+    "name": "eSignet Mock Identity System",
+    "description": "Collection for testing the mock identity system and eSignet integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8088",
+      "type": "string"
+    },
+    {
+      "key": "esignetUrl",
+      "value": "http://localhost:8089",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Check if the mock identity system is running"
+      }
+    },
+    {
+      "name": "Register Mock Identity",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"1234567890123456\",\n  \"fullName\": \"Jean Baptiste Ndayisenga\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"address\": \"Bujumbura, Rohero, Zone 1, Avenue de la Paix 123\",\n  \"phoneNumber\": \"+257 79 123 456\",\n  \"email\": \"jean.ndayisenga@example.com\",\n  \"photo\": \"\",\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/identity/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["identity", "register"]
+        },
+        "description": "Register a mock identity for testing"
+      }
+    },
+    {
+      "name": "Get Identity by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/identity/1234567890123456",
+          "host": ["{{baseUrl}}"],
+          "path": ["identity", "1234567890123456"]
+        },
+        "description": "Retrieve an identity by National ID"
+      }
+    },
+    {
+      "name": "List All Identities",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/identity/list",
+          "host": ["{{baseUrl}}"],
+          "path": ["identity", "list"]
+        },
+        "description": "List all registered mock identities"
+      }
+    },
+    {
+      "name": "eSignet Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{esignetUrl}}/health",
+          "host": ["{{esignetUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Check if eSignet service is running"
+      }
+    },
+    {
+      "name": "Initiate Authentication",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"digital-license-app\",\n  \"scope\": \"openid profile\",\n  \"responseType\": \"code\",\n  \"redirectUri\": \"http://localhost:3000/auth/callback\",\n  \"claims\": {\n    \"userinfo\": {\n      \"individual_id\": {\n        \"essential\": true,\n        \"value\": \"1234567890123456\"\n      }\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{esignetUrl}}/authorize",
+          "host": ["{{esignetUrl}}"],
+          "path": ["authorize"]
+        },
+        "description": "Initiate authentication with National ID"
+      }
+    },
+    {
+      "name": "Send OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transactionId\": \"{{transactionId}}\",\n  \"individualId\": \"1234567890123456\",\n  \"otpChannels\": [\"PHONE\"]\n}"
+        },
+        "url": {
+          "raw": "{{esignetUrl}}/send-otp",
+          "host": ["{{esignetUrl}}"],
+          "path": ["send-otp"]
+        },
+        "description": "Send OTP to registered phone number"
+      }
+    },
+    {
+      "name": "Verify OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transactionId\": \"{{transactionId}}\",\n  \"individualId\": \"1234567890123456\",\n  \"challengeList\": [\n    {\n      \"authFactorType\": \"OTP\",\n      \"challenge\": \"123456\",\n      \"format\": \"alpha-numeric\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{esignetUrl}}/authenticate",
+          "host": ["{{esignetUrl}}"],
+          "path": ["authenticate"]
+        },
+        "description": "Verify OTP (use 123456 for testing)"
+      }
+    }
+  ]
+}
