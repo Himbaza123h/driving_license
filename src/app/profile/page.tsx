@@ -9,8 +9,6 @@ import {
   faEdit,
   faSave,
   faTimes,
-  faCarSide,
-  faSignOutAlt,
   faToggleOn,
   faToggleOff,
 } from "@fortawesome/free-solid-svg-icons";
@@ -31,7 +29,7 @@ type Permissions = {
 };
 
 const ProfilePage: React.FC = () => {
-  const { user, isLoading, signOut } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -118,7 +116,13 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleSavePermissions = async () => {
-    if (!user?.nationalId) return;
+    const nationalId = sessionStorage.getItem("user_national_id");
+
+    if (!nationalId) {
+      console.error("No national ID found in session storage");
+      // Show error message or handle this case
+      return;
+    }
 
     setIsLoadingPermissions(true);
     setPermissionsError("");
@@ -171,51 +175,6 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Profile Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center">
-              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-[#2C8E5D] to-[#1f6a44] rounded-lg p-1.5 shadow-sm">
-                <FontAwesomeIcon
-                  icon={faCarSide}
-                  className="w-5 h-5 text-white"
-                />
-              </div>
-              <div className="ml-3">
-                <h1 className="font-inter font-bold text-lg text-black">
-                  DLV Burundi
-                </h1>
-                <p className="font-inter text-xs text-gray-600">Profile</p>
-              </div>
-            </div>
-
-            {/* User Menu */}
-            <div className="flex items-center space-x-4">
-              <span className="font-inter text-sm text-gray-700">
-                Welcome, {user.name}
-              </span>
-              <button
-                onClick={() => router.push("/dashboard")}
-                className="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg transition-all"
-              >
-                <span className="font-inter text-sm text-gray-700">
-                  Dashboard
-                </span>
-              </button>
-              <button
-                onClick={signOut}
-                className="flex items-center space-x-2 bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg transition-all"
-              >
-                <FontAwesomeIcon icon={faSignOutAlt} className="w-4 h-4" />
-                <span className="font-inter text-sm">Sign Out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
@@ -442,165 +401,168 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Data Privacy & Permissions */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
-                <div className="mb-6">
-                  <h2 className="text-xl font-inter font-semibold text-gray-900">
-                    Data Privacy & Permissions
-                  </h2>
-                  <p className="text-sm text-gray-500 font-inter mt-1">
-                    Control what information can be shared when verifying your
-                    identity
-                  </p>
-                </div>
-
-                {permissionsError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-700 font-inter">
-                      {permissionsError}
+              {sessionStorage.getItem("user_national_id") && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+                  <div className="mb-6">
+                    <h2 className="text-xl font-inter font-semibold text-gray-900">
+                      Data Privacy & Permissions
+                    </h2>
+                    <p className="text-sm text-gray-500 font-inter mt-1">
+                      Control what information can be shared when verifying your
+                      identity
                     </p>
                   </div>
-                )}
 
-                <div className="space-y-4">
-                  {(
-                    [
-                      {
-                        key: "email" as const,
-                        label: "Email Address",
-                        description:
-                          "Allow sharing your email address for communication",
-                      },
-                      {
-                        key: "name" as const,
-                        label: "Full Name",
-                        description:
-                          "Allow sharing your full name during verification",
-                      },
-                      {
-                        key: "birthdate" as const,
-                        label: "Date of Birth",
-                        description:
-                          "Allow sharing your birth date for age verification",
-                      },
-                      {
-                        key: "gender" as const,
-                        label: "Gender",
-                        description: "Allow sharing your gender information",
-                      },
-                      {
-                        key: "phoneNumber" as const,
-                        label: "Phone Number",
-                        description:
-                          "Allow sharing your phone number for contact",
-                      },
-                      {
-                        key: "picture" as const,
-                        label: "Profile Picture",
-                        description:
-                          "Allow sharing your profile picture for identification",
-                      },
-                    ] as const
-                  ).map((item) => (
-                    <div
-                      key={item.key}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <FontAwesomeIcon
-                          icon={
-                            permissions[item.key] ? faToggleOn : faToggleOff
-                          }
-                          className={`w-6 h-6 ${
-                            permissions[item.key]
-                              ? "text-[#2C8E5D]"
-                              : "text-gray-400"
-                          }`}
-                        />
-                        <div>
-                          <h3 className="font-inter font-medium text-gray-900">
-                            {item.label}
-                          </h3>
-                          <p className="font-inter text-sm text-gray-500">
-                            {item.description}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handlePermissionToggle(item.key)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          permissions[item.key] ? "bg-[#2C8E5D]" : "bg-gray-200"
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            permissions[item.key]
-                              ? "translate-x-6"
-                              : "translate-x-1"
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                {(permissionsSuccess || permissionsError) && (
-                  <div
-                    className={`mt-4 p-3 rounded-lg ${
-                      permissionsSuccess
-                        ? "bg-green-50 border border-green-200"
-                        : "bg-red-50 border border-red-200"
-                    }`}
-                  >
-                    <p
-                      className={`text-sm font-inter ${
-                        permissionsSuccess ? "text-green-700" : "text-red-700"
-                      }`}
-                    >
-                      {permissionsSuccess || permissionsError}
-                    </p>
-                  </div>
-                )}
-
-                <div className="mt-6 flex justify-end">
-                  <button
-                    onClick={handleSavePermissions}
-                    disabled={isLoadingPermissions}
-                    className="bg-[#2C8E5D] hover:bg-[#245A47] disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-inter font-medium flex items-center space-x-2"
-                  >
-                    {isLoadingPermissions ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <FontAwesomeIcon icon={faSave} className="w-4 h-4" />
-                        <span>Save</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <FontAwesomeIcon
-                      icon={faShield}
-                      className="w-5 h-5 text-blue-600 mt-0.5"
-                    />
-                    <div>
-                      <h4 className="font-inter font-medium text-blue-900">
-                        Privacy Notice
-                      </h4>
-                      <p className="font-inter text-sm text-blue-700 mt-1">
-                        These permissions only apply when you choose to share
-                        your information during identity verification. Your data
-                        is never shared without your explicit consent.
+                  {permissionsError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-700 font-inter">
+                        {permissionsError}
                       </p>
                     </div>
+                  )}
+
+                  <div className="space-y-4">
+                    {(
+                      [
+                        {
+                          key: "email" as const,
+                          label: "Email Address",
+                          description:
+                            "Allow sharing your email address for communication",
+                        },
+                        {
+                          key: "name" as const,
+                          label: "Full Name",
+                          description:
+                            "Allow sharing your full name during verification",
+                        },
+                        {
+                          key: "birthdate" as const,
+                          label: "Date of Birth",
+                          description:
+                            "Allow sharing your birth date for age verification",
+                        },
+                        {
+                          key: "gender" as const,
+                          label: "Gender",
+                          description: "Allow sharing your gender information",
+                        },
+                        {
+                          key: "phoneNumber" as const,
+                          label: "Phone Number",
+                          description:
+                            "Allow sharing your phone number for contact",
+                        },
+                        {
+                          key: "picture" as const,
+                          label: "Profile Picture",
+                          description:
+                            "Allow sharing your profile picture for identification",
+                        },
+                      ] as const
+                    ).map((item) => (
+                      <div
+                        key={item.key}
+                        className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <FontAwesomeIcon
+                            icon={
+                              permissions[item.key] ? faToggleOn : faToggleOff
+                            }
+                            className={`w-6 h-6 ${
+                              permissions[item.key]
+                                ? "text-[#2C8E5D]"
+                                : "text-gray-400"
+                            }`}
+                          />
+                          <div>
+                            <h3 className="font-inter font-medium text-gray-900">
+                              {item.label}
+                            </h3>
+                            <p className="font-inter text-sm text-gray-500">
+                              {item.description}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handlePermissionToggle(item.key)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            permissions[item.key]
+                              ? "bg-[#2C8E5D]"
+                              : "bg-gray-200"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              permissions[item.key]
+                                ? "translate-x-6"
+                                : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {(permissionsSuccess || permissionsError) && (
+                    <div
+                      className={`mt-4 p-3 rounded-lg ${
+                        permissionsSuccess
+                          ? "bg-green-50 border border-green-200"
+                          : "bg-red-50 border border-red-200"
+                      }`}
+                    >
+                      <p
+                        className={`text-sm font-inter ${
+                          permissionsSuccess ? "text-green-700" : "text-red-700"
+                        }`}
+                      >
+                        {permissionsSuccess || permissionsError}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={handleSavePermissions}
+                      disabled={isLoadingPermissions}
+                      className="bg-[#2C8E5D] hover:bg-[#245A47] disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-inter font-medium flex items-center space-x-2"
+                    >
+                      {isLoadingPermissions ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faSave} className="w-4 h-4" />
+                          <span>Save</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <FontAwesomeIcon
+                        icon={faShield}
+                        className="w-5 h-5 text-blue-600 mt-0.5"
+                      />
+                      <div>
+                        <h4 className="font-inter font-medium text-blue-900">
+                          Privacy Notice
+                        </h4>
+                        <p className="font-inter text-sm text-blue-700 mt-1">
+                          These permissions only apply when you choose to share
+                          your information during identity verification. Your
+                          data is never shared without your explicit consent.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Sidebar */}

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import Image from "next/image";
+// import Image from "next/image";
 import {
   faEye,
   faEyeSlash,
@@ -18,7 +18,7 @@ interface SignInProps {
 
 const SignIn: React.FC<SignInProps> = ({
   onSwitchToSignUp,
-  onSwitchToNationalId,
+  // onSwitchToNationalId,
 }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -162,8 +162,8 @@ const SignIn: React.FC<SignInProps> = ({
         </button>
       </form>
 
-      <div className="mt-6">
-        <div className="relative">
+      {/* <div className="mt-6"> */}
+        {/* <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300" />
           </div>
@@ -172,7 +172,7 @@ const SignIn: React.FC<SignInProps> = ({
               Or continue with
             </span>
           </div>
-        </div>
+        </div> */}
         {/* <button
           onClick={handleGoogleSignIn}
           disabled={isLoading}
@@ -182,7 +182,7 @@ const SignIn: React.FC<SignInProps> = ({
           <span>Sign in with Google</span>
         </button> */}
 
-        {onSwitchToNationalId && (
+        {/* {onSwitchToNationalId && (
           <button
             onClick={onSwitchToNationalId}
             disabled={isLoading}
@@ -192,8 +192,8 @@ const SignIn: React.FC<SignInProps> = ({
 
             <Image src="/mosip_logo.png" alt="MOSIP" width={40} height={40} />
           </button>
-        )}
-      </div>
+        )} */}
+      {/* </div> */}
 
       <div className="mt-6 text-center">
         <p className="text-gray-600 font-inter">

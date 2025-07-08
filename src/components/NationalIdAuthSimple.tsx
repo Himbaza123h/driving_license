@@ -342,6 +342,8 @@ export default function NationalIdAuth({
 
       // Mark permissions as completed
       sessionStorage.setItem("permissions_completed", "true");
+      sessionStorage.setItem("user_national_id", nationalId);
+      sessionStorage.setItem("login_national_id", "true");
 
       setTimeout(() => {
         onSuccess(citizenData);

@@ -460,7 +460,7 @@ export default function NationalIdAuth({
       {process.env.NODE_ENV === "development" && (
         <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-blue-800 text-xs text-center">
-            <strong>Development Mode:</strong> Using Supabase directly. Use any
+            <strong> Mode:</strong> Using Supabase directly. Use any
             13-digit National ID from the database and any 6-digit OTP for
             testing.
           </p>
