@@ -24,7 +24,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string, nationalId?: string, phoneNumber?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithNationalId: (nationalIdData: NationalIdData) => Promise<void>;
   signOut: () => Promise<void>;
@@ -70,53 +70,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const timer = setTimeout(checkAuth, 50);
     return () => clearTimeout(timer);
   }, []);
+
   const signIn = async (email: string, password: string) => {
-    setIsLoading(true);
+    console.log('AuthContext: Starting sign in process for:', email);
+    
     try {
-      // Simulate API call - password would be used for actual authentication
-      console.log('Signing in with:', email, password);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful sign in
-      const mockUser: User = {
-        id: '1',
-        email,
-        name: email.split('@')[0],
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const result = await response.json();
+      console.log('AuthContext: API Response status:', response.status);
+      console.log('AuthContext: API Response data:', result);
+
+      if (!response.ok) {
+        console.log('AuthContext: Login failed with status:', response.status);
+        console.log('AuthContext: Error message:', result.error);
+        
+        // Throw error with the specific message from the API
+        throw new Error(result.error || 'Login failed');
+      }
+
+      // Create user object from API response
+      const userData: User = {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.profile?.full_name || result.user.email?.split('@')[0] || 'User',
         provider: 'email'
       };
       
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-    } catch {
-      throw new Error('Invalid credentials');
-    } finally {
-      setIsLoading(false);
+      console.log('AuthContext: Setting user data:', userData);
+      
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Store session data if needed
+      if (result.session) {
+        localStorage.setItem('session', JSON.stringify(result.session));
+      }
+      
+      console.log('AuthContext: Sign in successful');
+      
+    } catch (error) {
+      console.log('AuthContext: Sign in error:', error);
+      
+      // Make sure to clear any loading states or partial data
+      setUser(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('session');
+      
+      // Re-throw the error so the component can handle it
+      throw error;
     }
   };
-  const signUp = async (email: string, password: string, name: string) => {
-    setIsLoading(true);
+
+  const signUp = async (email: string, password: string, name: string, nationalId?: string, phoneNumber?: string) => {
     try {
-      // Simulate API call - password would be used for actual account creation
-      console.log('Creating account for:', email, name, password);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          fullName: name, 
+          email, 
+          password, 
+          nationalId, 
+          phoneNumber 
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Signup failed');
+      }
+
+      // Note: For signup, user might need to verify email first
+      // So we might not set the user immediately
+      console.log('Signup successful:', result.message);
       
-      // Mock successful sign up
-      const mockUser: User = {
-        id: '1',
-        email,
-        name,
-        provider: 'email'
-      };
+      // If you want to auto-login after signup, you can do:
+      // await signIn(email, password);
       
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-    } catch {
-      throw new Error('Failed to create account');
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.log('Sign up error:', error);
+      throw error; // Re-throw to be handled by the component
     }
-  };  const signInWithGoogle = async () => {
-    setIsLoading(true);
+  };
+
+  const signInWithGoogle = async () => {
     try {
       // Simulate Google OAuth
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -130,15 +177,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setUser(mockUser);
       localStorage.setItem('user', JSON.stringify(mockUser));
-    } catch {
+    } catch (error) {
+      console.log('Google sign in error:', error);
       throw new Error('Google sign-in failed');
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const signInWithNationalId = async (nationalIdData: NationalIdData) => {
-    setIsLoading(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
       
@@ -153,16 +198,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setUser(mockUser);
       localStorage.setItem('user', JSON.stringify(mockUser));
-    } catch {
+    } catch (error) {
+      console.log('National ID sign in error:', error);
       throw new Error('National ID authentication failed');
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
-    setUser(null);
-    localStorage.removeItem('user');
+    try {
+      setUser(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('session');
+    } catch (error) {
+      console.log('Sign out error:', error);
+      // Still clear local state even if API call fails
+      setUser(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('session');
+    }
   };
 
   return (
