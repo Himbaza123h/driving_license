@@ -1,62 +1,102 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
   faArrowLeft,
-  faArrowRight,  faExclamationTriangle
-} from '@fortawesome/free-solid-svg-icons';
-import { useAuth } from '@/contexts/AuthContext';
-import { useApplication, type PersonalInfo } from '@/contexts/ApplicationContext';
-import { ApplicationSteps, LoadingSpinner } from '../components/ApplicationShared';
+  faArrowRight,
+  faExclamationTriangle,
+} from "@fortawesome/free-solid-svg-icons";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  useApplication,
+  type PersonalInfo,
+} from "@/contexts/ApplicationContext";
+import {
+  ApplicationSteps,
+  LoadingSpinner,
+} from "../components/ApplicationShared";
+
+// Add these functions here - after imports, before the component
+const saveToSessionStorage = (key: string, data: unknown) => {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error("Error saving to session storage:", error);
+  }
+};
+
+const getFromSessionStorage = (key: string) => {
+  try {
+    const data = sessionStorage.getItem(key);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error("Error reading from session storage:", error);
+    return null;
+  }
+};
 
 export default function PersonalInfoPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { applicationData, updatePersonalInfo, updateLicenseType, setCurrentStep } = useApplication();
+  const {
+    applicationData,
+    updatePersonalInfo,
+    updateLicenseType,
+    setCurrentStep,
+  } = useApplication();
 
-  const [formData, setFormData] = useState<Partial<PersonalInfo>>({
-    firstName: '',
-    lastName: '',
-    middleName: '',
-    dateOfBirth: '',
-    placeOfBirth: '',
-    gender: '',
-    nationality: 'Burundian',
-    nationalId: '',
-    phoneNumber: '',
-    email: user?.email || '',
-    address: {
-      province: '',
-      commune: '',
-      zone: '',
-      street: ''
-    },
-    emergencyContact: {
-      name: '',
-      relationship: '',
-      phoneNumber: ''
-    }
+  const [formData, setFormData] = useState<Partial<PersonalInfo>>(() => {
+    const savedData = getFromSessionStorage("personalInfo");
+    return (
+      savedData || {
+        firstName: "",
+        lastName: "",
+        middleName: "",
+        dateOfBirth: "",
+        placeOfBirth: "",
+        gender: "",
+        nationality: "Burundian",
+        nationalId: "",
+        phoneNumber: "",
+        email: user?.email || "",
+        address: {
+          province: "",
+          commune: "",
+          zone: "",
+          street: "",
+        },
+        emergencyContact: {
+          name: "",
+          relationship: "",
+          phoneNumber: "",
+        },
+      }
+    );
   });
 
-  const [errors, setErrors] = useState<{[key: string]: string}>({});  // Initialize data from context and URL params
+
+  const [errors, setErrors] = useState<{ [key: string]: string }>({}); // Initialize data from context and URL params
   useEffect(() => {
     setCurrentStep(2);
   }, [setCurrentStep]);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Handle license type from URL params
-  useEffect(() => {
-    const licenseType = searchParams?.get('type');
-    if (licenseType && licenseType !== applicationData.licenseType) {
-      updateLicenseType(licenseType);
-    }
-  }, [searchParams, applicationData.licenseType, updateLicenseType]);
+useEffect(() => {
+  const licenseType = searchParams?.get("type") || getFromSessionStorage('licenseType');
+  if (licenseType && licenseType !== applicationData.licenseType) {
+    updateLicenseType(licenseType);
+    saveToSessionStorage('licenseType', licenseType);
+  }
+}, [searchParams, applicationData.licenseType, updateLicenseType]);
 
   // Load saved personal info data
   useEffect(() => {
     if (applicationData.personalInfo) {
-      setFormData(prev => ({ ...prev, ...applicationData.personalInfo }));
+      setFormData((prev) => ({ ...prev, ...applicationData.personalInfo }));
     }
   }, [applicationData.personalInfo]);
 
@@ -64,85 +104,138 @@ export default function PersonalInfoPage() {
   if (isLoading) {
     return <LoadingSpinner message="Loading..." />;
   }
-  
+
   // If user is not authenticated, let ConditionalLayout handle the redirect
   if (!user) {
     return null;
   }
 
   const provinces = [
-    'Bubanza', 'Bujumbura Mairie', 'Bujumbura Rural', 'Bururi', 'Cankuzo',
-    'Cibitoke', 'Gitega', 'Karuzi', 'Kayanza', 'Kirundo', 'Makamba',
-    'Muramvya', 'Muyinga', 'Mwaro', 'Ngozi', 'Rumonge', 'Rutana', 'Ruyigi'
+    "Bubanza",
+    "Bujumbura Mairie",
+    "Bujumbura Rural",
+    "Bururi",
+    "Cankuzo",
+    "Cibitoke",
+    "Gitega",
+    "Karuzi",
+    "Kayanza",
+    "Kirundo",
+    "Makamba",
+    "Muramvya",
+    "Muyinga",
+    "Mwaro",
+    "Ngozi",
+    "Rumonge",
+    "Rutana",
+    "Ruyigi",
   ];
 
   const relationships = [
-    'Parent', 'Spouse', 'Sibling', 'Child', 'Relative', 'Friend', 'Colleague'
+    "Parent",
+    "Spouse",
+    "Sibling",
+    "Child",
+    "Relative",
+    "Friend",
+    "Colleague",
   ];
-  const handleInputChange = (field: string, value: string) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...(prev[parent as keyof PersonalInfo] as object || {}),
-          [child]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [field]: value
-      }));
-    }
 
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }));
-    }
-  };
+  const handleInputChange = (field: string, value: string) => {
+  let newFormData;
+  
+  if (field.includes(".")) {
+    const [parent, child] = field.split(".");
+    newFormData = {
+      ...formData,
+      [parent]: {
+        ...((formData[parent as keyof PersonalInfo] as object) || {}),
+        [child]: value,
+      },
+    };
+  } else {
+    newFormData = {
+      ...formData,
+      [field]: value,
+    };
+  }
+  
+  setFormData(newFormData);
+  
+  // Save to session storage
+  saveToSessionStorage('personalInfo', newFormData);
+  
+  // Save license type to session storage
+  if (applicationData.licenseType) {
+    saveToSessionStorage('licenseType', applicationData.licenseType);
+  }
+
+  // Clear error when user starts typing
+  if (errors[field]) {
+    setErrors((prev) => ({
+      ...prev,
+      [field]: "",
+    }));
+  }
+};
 
   const validateForm = (): boolean => {
-    const newErrors: {[key: string]: string} = {};
+    const newErrors: { [key: string]: string } = {};
 
     // Required fields validation
     const requiredFields = [
-      'firstName', 'lastName', 'dateOfBirth', 'placeOfBirth', 'gender',
-      'nationality', 'nationalId', 'phoneNumber', 'email'
+      "firstName",
+      "lastName",
+      "dateOfBirth",
+      "placeOfBirth",
+      "gender",
+      "nationality",
+      "nationalId",
+      "phoneNumber",
+      "email",
     ];
 
-    requiredFields.forEach(field => {
+    requiredFields.forEach((field) => {
       if (!formData[field as keyof PersonalInfo]) {
-        newErrors[field] = 'This field is required';
+        newErrors[field] = "This field is required";
       }
     });
 
     // Address validation
-    if (!formData.address?.province) newErrors['address.province'] = 'Province is required';
-    if (!formData.address?.commune) newErrors['address.commune'] = 'Commune is required';
-    if (!formData.address?.zone) newErrors['address.zone'] = 'Zone is required';
+    if (!formData.address?.province)
+      newErrors["address.province"] = "Province is required";
+    if (!formData.address?.commune)
+      newErrors["address.commune"] = "Commune is required";
+    if (!formData.address?.zone) newErrors["address.zone"] = "Zone is required";
 
     // Emergency contact validation
-    if (!formData.emergencyContact?.name) newErrors['emergencyContact.name'] = 'Emergency contact name is required';
-    if (!formData.emergencyContact?.relationship) newErrors['emergencyContact.relationship'] = 'Relationship is required';
-    if (!formData.emergencyContact?.phoneNumber) newErrors['emergencyContact.phoneNumber'] = 'Emergency contact phone is required';
+    if (!formData.emergencyContact?.name)
+      newErrors["emergencyContact.name"] = "Emergency contact name is required";
+    if (!formData.emergencyContact?.relationship)
+      newErrors["emergencyContact.relationship"] = "Relationship is required";
+    if (!formData.emergencyContact?.phoneNumber)
+      newErrors["emergencyContact.phoneNumber"] =
+        "Emergency contact phone is required";
 
     // Email validation
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = "Please enter a valid email address";
     }
 
     // Phone number validation (basic)
-    if (formData.phoneNumber && !/^\+?[0-9\s-()]{8,}$/.test(formData.phoneNumber)) {
-      newErrors.phoneNumber = 'Please enter a valid phone number';
+    if (
+      formData.phoneNumber &&
+      !/^\+?[0-9\s-()]{8,}$/.test(formData.phoneNumber)
+    ) {
+      newErrors.phoneNumber = "Please enter a valid phone number";
     }
 
     // National ID validation (basic - 16 digits for Burundi)
-    if (formData.nationalId && !/^\d{16}$/.test(formData.nationalId.replace(/\s/g, ''))) {
-      newErrors.nationalId = 'National ID must be 16 digits';
+    if (
+      formData.nationalId &&
+      !/^\d{16}$/.test(formData.nationalId.replace(/\s/g, ""))
+    ) {
+      newErrors.nationalId = "National ID must be 16 digits";
     }
 
     // Age validation
@@ -151,13 +244,20 @@ export default function PersonalInfoPage() {
       const birthDate = new Date(formData.dateOfBirth);
       let age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
-      
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birthDate.getDate())
+      ) {
         age--;
       }
 
-      const minAge = applicationData.licenseType === 'motorcycle' ? 16 : 
-                    applicationData.licenseType === 'commercial' ? 21 : 18;
+      const minAge =
+        applicationData.licenseType === "motorcycle"
+          ? 16
+          : applicationData.licenseType === "commercial"
+          ? 21
+          : 18;
 
       if (age < minAge) {
         newErrors.dateOfBirth = `You must be at least ${minAge} years old for this license type`;
@@ -168,16 +268,51 @@ export default function PersonalInfoPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
-    if (validateForm()) {
+  const handleNext = async () => {
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/apply/personalInfo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          licenseType: applicationData.licenseType,
+          personalInfo: formData,
+          nationalId: formData.nationalId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to save personal information");
+      }
+
+      // Update context with saved data
       updatePersonalInfo(formData);
-      router.push('/apply/documents');
+
+      saveToSessionStorage('personalInfo', formData);
+      saveToSessionStorage('licenseType', applicationData.licenseType);
+
+      // Navigate to next step
+      router.push("/apply/documents");
+    } catch (error) {
+      console.error("Error saving personal info:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "An unexpected error occurred";
+      alert("Error saving information: " + errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleBack = () => {
     updatePersonalInfo(formData);
-    router.push('/apply');
+    router.push("/apply");
   };
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -190,7 +325,8 @@ export default function PersonalInfoPage() {
               Personal Information
             </h2>
             <p className="text-gray-600 font-inter">
-              Please provide your personal details as they appear on your official documents.
+              Please provide your personal details as they appear on your
+              official documents.
             </p>
           </div>
 
@@ -207,15 +343,19 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.firstName || ''}
-                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    value={formData.firstName || ""}
+                    onChange={(e) =>
+                      handleInputChange("firstName", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors.firstName ? 'border-red-300' : 'border-gray-300'
+                      errors.firstName ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Enter your first name"
                   />
                   {errors.firstName && (
-                    <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.firstName}
+                    </p>
                   )}
                 </div>
 
@@ -225,15 +365,19 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.lastName || ''}
-                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    value={formData.lastName || ""}
+                    onChange={(e) =>
+                      handleInputChange("lastName", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors.lastName ? 'border-red-300' : 'border-gray-300'
+                      errors.lastName ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Enter your last name"
                   />
                   {errors.lastName && (
-                    <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.lastName}
+                    </p>
                   )}
                 </div>
 
@@ -243,8 +387,10 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.middleName || ''}
-                    onChange={(e) => handleInputChange('middleName', e.target.value)}
+                    value={formData.middleName || ""}
+                    onChange={(e) =>
+                      handleInputChange("middleName", e.target.value)
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D]"
                     placeholder="Enter your middle name (optional)"
                   />
@@ -253,17 +399,22 @@ export default function PersonalInfoPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Date of Birth *
-                  </label>                  <input
+                  </label>{" "}
+                  <input
                     type="date"
-                    value={formData.dateOfBirth || ''}
-                    onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                    value={formData.dateOfBirth || ""}
+                    onChange={(e) =>
+                      handleInputChange("dateOfBirth", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors.dateOfBirth ? 'border-red-300' : 'border-gray-300'
+                      errors.dateOfBirth ? "border-red-300" : "border-gray-300"
                     }`}
                     title="Select your date of birth"
                   />
                   {errors.dateOfBirth && (
-                    <p className="mt-1 text-sm text-red-600">{errors.dateOfBirth}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.dateOfBirth}
+                    </p>
                   )}
                 </div>
 
@@ -273,26 +424,33 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.placeOfBirth || ''}
-                    onChange={(e) => handleInputChange('placeOfBirth', e.target.value)}
+                    value={formData.placeOfBirth || ""}
+                    onChange={(e) =>
+                      handleInputChange("placeOfBirth", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors.placeOfBirth ? 'border-red-300' : 'border-gray-300'
+                      errors.placeOfBirth ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Enter your place of birth"
                   />
                   {errors.placeOfBirth && (
-                    <p className="mt-1 text-sm text-red-600">{errors.placeOfBirth}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.placeOfBirth}
+                    </p>
                   )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Gender *
-                  </label>                  <select
-                    value={formData.gender || ''}
-                    onChange={(e) => handleInputChange('gender', e.target.value)}
+                  </label>{" "}
+                  <select
+                    value={formData.gender || ""}
+                    onChange={(e) =>
+                      handleInputChange("gender", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors.gender ? 'border-red-300' : 'border-gray-300'
+                      errors.gender ? "border-red-300" : "border-gray-300"
                     }`}
                     title="Select your gender"
                   >
@@ -319,15 +477,19 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.nationality || ''}
-                    onChange={(e) => handleInputChange('nationality', e.target.value)}
+                    value={formData.nationality || ""}
+                    onChange={(e) =>
+                      handleInputChange("nationality", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors.nationality ? 'border-red-300' : 'border-gray-300'
+                      errors.nationality ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Enter your nationality"
                   />
                   {errors.nationality && (
-                    <p className="mt-1 text-sm text-red-600">{errors.nationality}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.nationality}
+                    </p>
                   )}
                 </div>
 
@@ -337,15 +499,19 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.nationalId || ''}
-                    onChange={(e) => handleInputChange('nationalId', e.target.value)}
+                    value={formData.nationalId || ""}
+                    onChange={(e) =>
+                      handleInputChange("nationalId", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors.nationalId ? 'border-red-300' : 'border-gray-300'
+                      errors.nationalId ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="1234 5678 9012 3456"
                   />
                   {errors.nationalId && (
-                    <p className="mt-1 text-sm text-red-600">{errors.nationalId}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.nationalId}
+                    </p>
                   )}
                 </div>
 
@@ -355,15 +521,19 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="tel"
-                    value={formData.phoneNumber || ''}
-                    onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                    value={formData.phoneNumber || ""}
+                    onChange={(e) =>
+                      handleInputChange("phoneNumber", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors.phoneNumber ? 'border-red-300' : 'border-gray-300'
+                      errors.phoneNumber ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="+257 XX XX XX XX"
                   />
                   {errors.phoneNumber && (
-                    <p className="mt-1 text-sm text-red-600">{errors.phoneNumber}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.phoneNumber}
+                    </p>
                   )}
                 </div>
 
@@ -373,10 +543,10 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="email"
-                    value={formData.email || ''}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    value={formData.email || ""}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors.email ? 'border-red-300' : 'border-gray-300'
+                      errors.email ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="your.email@example.com"
                   />
@@ -396,21 +566,30 @@ export default function PersonalInfoPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Province *
-                  </label>                  <select
-                    value={formData.address?.province || ''}
-                    onChange={(e) => handleInputChange('address.province', e.target.value)}
+                  </label>{" "}
+                  <select
+                    value={formData.address?.province || ""}
+                    onChange={(e) =>
+                      handleInputChange("address.province", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors['address.province'] ? 'border-red-300' : 'border-gray-300'
+                      errors["address.province"]
+                        ? "border-red-300"
+                        : "border-gray-300"
                     }`}
                     title="Select your province"
                   >
                     <option value="">Select province</option>
-                    {provinces.map(province => (
-                      <option key={province} value={province}>{province}</option>
+                    {provinces.map((province) => (
+                      <option key={province} value={province}>
+                        {province}
+                      </option>
                     ))}
                   </select>
-                  {errors['address.province'] && (
-                    <p className="mt-1 text-sm text-red-600">{errors['address.province']}</p>
+                  {errors["address.province"] && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors["address.province"]}
+                    </p>
                   )}
                 </div>
 
@@ -420,15 +599,21 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.address?.commune || ''}
-                    onChange={(e) => handleInputChange('address.commune', e.target.value)}
+                    value={formData.address?.commune || ""}
+                    onChange={(e) =>
+                      handleInputChange("address.commune", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors['address.commune'] ? 'border-red-300' : 'border-gray-300'
+                      errors["address.commune"]
+                        ? "border-red-300"
+                        : "border-gray-300"
                     }`}
                     placeholder="Enter commune"
                   />
-                  {errors['address.commune'] && (
-                    <p className="mt-1 text-sm text-red-600">{errors['address.commune']}</p>
+                  {errors["address.commune"] && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors["address.commune"]}
+                    </p>
                   )}
                 </div>
 
@@ -438,15 +623,21 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.address?.zone || ''}
-                    onChange={(e) => handleInputChange('address.zone', e.target.value)}
+                    value={formData.address?.zone || ""}
+                    onChange={(e) =>
+                      handleInputChange("address.zone", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors['address.zone'] ? 'border-red-300' : 'border-gray-300'
+                      errors["address.zone"]
+                        ? "border-red-300"
+                        : "border-gray-300"
                     }`}
                     placeholder="Enter zone"
                   />
-                  {errors['address.zone'] && (
-                    <p className="mt-1 text-sm text-red-600">{errors['address.zone']}</p>
+                  {errors["address.zone"] && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors["address.zone"]}
+                    </p>
                   )}
                 </div>
 
@@ -456,8 +647,10 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.address?.street || ''}
-                    onChange={(e) => handleInputChange('address.street', e.target.value)}
+                    value={formData.address?.street || ""}
+                    onChange={(e) =>
+                      handleInputChange("address.street", e.target.value)
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D]"
                     placeholder="Enter street address"
                   />
@@ -477,36 +670,54 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.emergencyContact?.name || ''}
-                    onChange={(e) => handleInputChange('emergencyContact.name', e.target.value)}
+                    value={formData.emergencyContact?.name || ""}
+                    onChange={(e) =>
+                      handleInputChange("emergencyContact.name", e.target.value)
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors['emergencyContact.name'] ? 'border-red-300' : 'border-gray-300'
+                      errors["emergencyContact.name"]
+                        ? "border-red-300"
+                        : "border-gray-300"
                     }`}
                     placeholder="Enter contact name"
                   />
-                  {errors['emergencyContact.name'] && (
-                    <p className="mt-1 text-sm text-red-600">{errors['emergencyContact.name']}</p>
+                  {errors["emergencyContact.name"] && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors["emergencyContact.name"]}
+                    </p>
                   )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Relationship *
-                  </label>                  <select
-                    value={formData.emergencyContact?.relationship || ''}
-                    onChange={(e) => handleInputChange('emergencyContact.relationship', e.target.value)}
+                  </label>{" "}
+                  <select
+                    value={formData.emergencyContact?.relationship || ""}
+                    onChange={(e) =>
+                      handleInputChange(
+                        "emergencyContact.relationship",
+                        e.target.value
+                      )
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors['emergencyContact.relationship'] ? 'border-red-300' : 'border-gray-300'
+                      errors["emergencyContact.relationship"]
+                        ? "border-red-300"
+                        : "border-gray-300"
                     }`}
                     title="Select relationship to emergency contact"
                   >
                     <option value="">Select relationship</option>
-                    {relationships.map(rel => (
-                      <option key={rel} value={rel}>{rel}</option>
+                    {relationships.map((rel) => (
+                      <option key={rel} value={rel}>
+                        {rel}
+                      </option>
                     ))}
                   </select>
-                  {errors['emergencyContact.relationship'] && (
-                    <p className="mt-1 text-sm text-red-600">{errors['emergencyContact.relationship']}</p>
+                  {errors["emergencyContact.relationship"] && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors["emergencyContact.relationship"]}
+                    </p>
                   )}
                 </div>
 
@@ -516,15 +727,24 @@ export default function PersonalInfoPage() {
                   </label>
                   <input
                     type="tel"
-                    value={formData.emergencyContact?.phoneNumber || ''}
-                    onChange={(e) => handleInputChange('emergencyContact.phoneNumber', e.target.value)}
+                    value={formData.emergencyContact?.phoneNumber || ""}
+                    onChange={(e) =>
+                      handleInputChange(
+                        "emergencyContact.phoneNumber",
+                        e.target.value
+                      )
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
-                      errors['emergencyContact.phoneNumber'] ? 'border-red-300' : 'border-gray-300'
+                      errors["emergencyContact.phoneNumber"]
+                        ? "border-red-300"
+                        : "border-gray-300"
                     }`}
                     placeholder="+257 XX XX XX XX"
                   />
-                  {errors['emergencyContact.phoneNumber'] && (
-                    <p className="mt-1 text-sm text-red-600">{errors['emergencyContact.phoneNumber']}</p>
+                  {errors["emergencyContact.phoneNumber"] && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors["emergencyContact.phoneNumber"]}
+                    </p>
                   )}
                 </div>
               </div>
@@ -533,13 +753,18 @@ export default function PersonalInfoPage() {
             {/* Important Notice */}
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <div className="flex items-start">
-                <FontAwesomeIcon icon={faExclamationTriangle} className="w-5 h-5 text-yellow-600 mt-0.5 mr-3" />
+                <FontAwesomeIcon
+                  icon={faExclamationTriangle}
+                  className="w-5 h-5 text-yellow-600 mt-0.5 mr-3"
+                />
                 <div>
                   <h4 className="font-inter font-medium text-yellow-800 mb-1">
                     Important Notice
                   </h4>
                   <p className="text-sm text-yellow-700">
-                    Please ensure all information matches your official documents exactly. Any discrepancies may delay your application processing.
+                    Please ensure all information matches your official
+                    documents exactly. Any discrepancies may delay your
+                    application processing.
                   </p>
                 </div>
               </div>
@@ -559,10 +784,20 @@ export default function PersonalInfoPage() {
               <button
                 type="button"
                 onClick={handleNext}
-                className="flex items-center space-x-2 px-6 py-3 bg-[#2C8E5D] hover:bg-[#245A47] text-white rounded-lg transition-all font-inter font-medium"
+                disabled={isSubmitting}
+                className="flex items-center space-x-2 px-6 py-3 bg-[#2C8E5D] hover:bg-[#245A47] text-white rounded-lg transition-all font-inter font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>Continue to Documents</span>
-                <FontAwesomeIcon icon={faArrowRight} className="w-4 h-4" />
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Continue to Documents</span>
+                    <FontAwesomeIcon icon={faArrowRight} className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </div>
           </form>
