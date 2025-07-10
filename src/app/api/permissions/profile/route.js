@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "../../../../backend/config/database";
+import { supabaseAdmin } from "../../../../../backend/config/database";
 
 // Save or update permissions for a phone number
 export async function POST(request) {
@@ -175,7 +175,6 @@ export async function POST(request) {
       name_permission: permissions.name,
       phone_number_permission: permissions.phoneNumber,
       picture_permission: permissions.picture,
-      is_verified: true, // ✅ Set verification status to true
       updated_at: new Date().toISOString(),
     };
 
@@ -226,7 +225,6 @@ export async function POST(request) {
       `Permissions ${isUpdate ? "updated" : "saved"} successfully:`,
       result.data
     );
-    console.log("✅ User verification status set to true");
 
     return NextResponse.json({
       success: true,
@@ -236,7 +234,6 @@ export async function POST(request) {
         id: result.data.id,
         citizenId: result.data.citizen_id,
         nationalId: result.data.national_id,
-        isVerified: result.data.is_verified, // ✅ Include verification status in response
         permissions: {
           email: result.data.email_permission,
           birthdate: result.data.birthdate_permission,
@@ -426,7 +423,6 @@ export async function GET(request) {
         id: permissions.id,
         citizenId: permissions.citizen_id,
         nationalId: permissions.national_id,
-        isVerified: permissions.is_verified, // ✅ Include verification status in response
         permissions: {
           email: permissions.email_permission,
           birthdate: permissions.birthdate_permission,

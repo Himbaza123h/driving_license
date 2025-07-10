@@ -106,27 +106,43 @@ export default function ApplyPage() {
     setCheckingPermissions(true);
 
     try {
-      // Check if user is already authenticated and has permissions
-      const hasPermissions = sessionStorage.getItem("permissions_completed");
-
-      if (hasPermissions === "true") {
-        console.log("✅ User has existing permissions, skipping verification");
-        // Navigate directly to the next step after verification
-        const targetUrl = `/apply/personal-info?type=${selectedLicenseType}`;
-        console.log("Navigating directly to:", targetUrl);
-        router.push(targetUrl);
-        return;
-      }
-
-      // If no permissions found, proceed with normal verification flow
-      console.log(
-        "📋 User needs verification, proceeding to verification form"
+      // Check if user is verified in user_permissions table
+      console.log("🔄 Checking user verification status...");
+      const verificationResponse = await fetch(
+        `/api/permissions/check-verified?email=${user?.email}`
       );
-      const targetUrl = `/apply/national-id-verification?type=${selectedLicenseType}`;
-      console.log("Navigating to:", targetUrl);
-      router.push(targetUrl);
+      
+      if (verificationResponse.ok) {
+        const verificationResult = await verificationResponse.json();
+        
+        if (verificationResult.isVerified) {
+          // User is verified, skip verification step
+          console.log("✅ User is verified, skipping verification step");
+          
+          // Mark permissions as completed
+          sessionStorage.setItem("permissions_completed", "true");
+          
+          // Navigate directly to personal info
+          const targetUrl = `/apply/personal-info?type=${selectedLicenseType}`;
+          console.log("Navigating directly to:", targetUrl);
+          router.push(targetUrl);
+          return;
+        } else {
+          // User is not verified, show verification step
+          console.log("📋 User is not verified, proceeding to verification form");
+          const targetUrl = `/apply/national-id-verification?type=${selectedLicenseType}`;
+          console.log("Navigating to:", targetUrl);
+          router.push(targetUrl);
+        }
+      } else {
+        // Error checking verification, default to showing verification step
+        console.log("❌ Error checking verification status, proceeding to verification form");
+        const targetUrl = `/apply/national-id-verification?type=${selectedLicenseType}`;
+        console.log("Error occurred, navigating to:", targetUrl);
+        router.push(targetUrl);
+      }
     } catch (error) {
-      console.error("Error checking permissions:", error);
+      console.error("Error checking verification status:", error);
       // On error, default to verification flow
       const targetUrl = `/apply/national-id-verification?type=${selectedLicenseType}`;
       console.log("Error occurred, navigating to:", targetUrl);
