@@ -291,7 +291,7 @@ export default function NationalIdAuth({
           />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Login with MOSIP
+          Verify with National ID
         </h2>
         <p className="text-gray-600">
           {step === "id-entry"

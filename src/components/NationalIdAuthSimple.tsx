@@ -1,4 +1,5 @@
 "use client";
+import { useAuth } from "@/contexts/AuthContext";
 import React, { useState, useEffect, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -36,6 +37,7 @@ export default function NationalIdAuth({
   const [success, setSuccess] = useState("");
   const [citizenData, setCitizenData] = useState<CitizenData | null>(null);
   const [displayOtp, setDisplayOtp] = useState("");
+  const { user } = useAuth();
 
   // Permission states
   const [permissions, setPermissions] = useState({
@@ -50,9 +52,19 @@ export default function NationalIdAuth({
   // Ref for the submit button to control its state
   const submitButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Debug component mount and initial state
+  // Update your existing useEffect (the one that runs on mount)
   useEffect(() => {
     console.log("🏗️ NationalIdAuth component mounted (Supabase mode)");
+
+    // Auto-populate National ID from user profile
+    if (user?.nationalId) {
+      setNationalId(user.nationalId);
+      console.log(
+        "🔄 Auto-populated National ID from user profile:",
+        user.nationalId
+      );
+    }
+
     console.log("🏗️ Initial state:", {
       step,
       nationalId,
@@ -67,7 +79,6 @@ export default function NationalIdAuth({
         submitButtonRef.current.blur();
         console.log("🔄 Button blurred on mount");
       }
-      // Also blur any other focused elements
       if (
         document.activeElement &&
         document.activeElement instanceof HTMLElement
@@ -77,7 +88,7 @@ export default function NationalIdAuth({
     }, 100);
 
     console.log("🔄 Component mounted and state initialized");
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user]); // Add user as dependency
 
   // For debugging loading state
   useEffect(() => {
@@ -85,6 +96,7 @@ export default function NationalIdAuth({
   }, [loading]);
 
   // Debug when button disabled state might change
+  // Update the existing debug useEffect
   useEffect(() => {
     const isValidLength = nationalId.length === 13;
     const buttonDisabled =
@@ -95,11 +107,12 @@ export default function NationalIdAuth({
       hasNationalId: !!nationalId,
       isValidLength: isValidLength,
       is13Digits: nationalId.length === 13,
+      userProfileNationalId: user?.nationalId,
       loading: loading,
       isLoading: isLoading,
       buttonDisabled: buttonDisabled,
     });
-  }, [nationalId, loading, isLoading]);
+  }, [nationalId, loading, isLoading, user]);
 
   // Reset loading state when component unmounts
   useEffect(() => {
@@ -142,9 +155,8 @@ export default function NationalIdAuth({
     console.log("🔄 Component state reset");
   };
 
-  const handleIdSubmit = async (e: React.FormEvent) => {
+  const handleIdSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
-
     // Clean the national ID input
     const cleanNationalId = nationalId.trim().replace(/\s+/g, "");
     console.log("Submitting National ID:", cleanNationalId);
@@ -154,7 +166,7 @@ export default function NationalIdAuth({
       return;
     }
 
-    console.log("🔄 Starting Supabase auth flow");
+    console.log("🔄 Starting API auth flow");
     setLoading(true);
     setError("");
     setSuccess("");
@@ -162,15 +174,21 @@ export default function NationalIdAuth({
     try {
       console.log("🔄 Starting auth flow with National ID:", cleanNationalId);
 
-      // Initiate auth (verify National ID and generate OTP)
-      const authResult = await supabaseAuthService.initiateAuth(
-        cleanNationalId
-      );
+      // Call the API endpoint
+      const response = await fetch("/api/auth/initiate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ nationalId: cleanNationalId }),
+      });
+
+      const authResult = await response.json();
       console.log("Auth initiation result:", authResult);
 
       if (!authResult.success) {
         console.log("❌ Auth initiation failed:", authResult.message);
-        setError(authResult.message || "Login with MOSIP failed");
+        setError(authResult.message || "Verify with National ID failed");
         return;
       }
 
@@ -179,27 +197,27 @@ export default function NationalIdAuth({
         "✅ Auth initiated successfully, transaction ID:",
         authResult.transactionId
       );
+
+      // Set OTP (will be available in development mode)
       setDisplayOtp(authResult.otp || "123456");
-      setTransactionId(authResult.transactionId!);
+      setTransactionId(authResult.transactionId);
       setStep("otp-verification");
       setSuccess(
         authResult.message || "OTP sent to your registered phone number"
       );
     } catch (error) {
       console.error("Auth flow error:", error);
-
       let errorMessage = "Connection error. Please try again.";
       if (error instanceof Error) {
         errorMessage = `Authentication error: ${error.message}`;
       }
-
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOtpSubmit = async (e: React.FormEvent) => {
+  const handleOtpSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
 
     if (otp.length !== 6) {
@@ -213,11 +231,21 @@ export default function NationalIdAuth({
 
     try {
       console.log("Verifying OTP:", { nationalId, otp, transactionId });
-      const verifyResult = await supabaseAuthService.verifyOtp(
-        nationalId,
-        otp,
-        transactionId
-      );
+
+      // Call the OTP verification API
+      const response = await fetch("/api/auth/verifyotp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nationalId,
+          otp,
+          transactionId,
+        }),
+      });
+
+      const verifyResult = await response.json();
       console.log("OTP verification result:", verifyResult);
 
       if (!verifyResult.success) {
@@ -233,7 +261,6 @@ export default function NationalIdAuth({
       }
 
       // SUCCESS - Store citizen data and move to permissions
-      // SUCCESS - Check if user has already set permissions
       console.log("✅ OTP verification successful! Checking permissions...");
       setCitizenData(verifyResult.citizenData);
 
@@ -247,6 +274,7 @@ export default function NationalIdAuth({
         const permissionsResponse = await fetch(
           `${apiUrl}?nationalId=${verifyResult.citizenData.nationalId}`
         );
+
         if (permissionsResponse.ok) {
           // User has existing permissions, skip to success
           console.log(
@@ -342,6 +370,8 @@ export default function NationalIdAuth({
 
       // Mark permissions as completed
       sessionStorage.setItem("permissions_completed", "true");
+      sessionStorage.setItem("user_national_id", nationalId);
+      sessionStorage.setItem("login_national_id", "true");
 
       setTimeout(() => {
         onSuccess(citizenData);
@@ -367,7 +397,7 @@ export default function NationalIdAuth({
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           {step === "permissions"
             ? "Data Sharing Permissions"
-            : "Login with MOSIP"}
+            : "Verify with National ID"}
         </h2>
         <p className="text-gray-600 text-sm">
           {step === "id-entry"
@@ -498,17 +528,29 @@ export default function NationalIdAuth({
                 type="text"
                 id="nationalId"
                 value={nationalId}
-                onChange={(e) =>
-                  setNationalId(e.target.value.replace(/\D/g, "").slice(0, 13))
-                }
+                onChange={(e) => {
+                  // Don't allow changes if user has nationalId
+                  if (!user?.nationalId) {
+                    setNationalId(
+                      e.target.value.replace(/\D/g, "").slice(0, 13)
+                    );
+                  }
+                }}
                 placeholder="Enter 13-digit National ID"
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 ${
+                  user?.nationalId
+                    ? "bg-gray-50 border-gray-200 cursor-not-allowed"
+                    : "border-gray-300"
+                }`}
                 disabled={loading || isLoading}
+                readOnly={!!user?.nationalId}
                 required
               />
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              Format: 13 digits (e.g., 1198700123456)
+              {user?.nationalId
+                ? "Your registered National ID (read-only)"
+                : "Format: 13 digits (e.g., 1198700123456)"}
             </p>
           </div>
 
@@ -522,7 +564,6 @@ export default function NationalIdAuth({
               <FontAwesomeIcon icon={faArrowLeft} className="w-4 h-4" />
               <span>Back</span>
             </button>
-
             <button
               ref={submitButtonRef}
               type="submit"

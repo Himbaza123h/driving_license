@@ -94,7 +94,7 @@ export default function ApplyPage() {
       console.log("Updating license type and navigating...");
       updateLicenseType(selectedLicenseType);
 
-      // Navigate to Login with MOSIP page first
+      // Navigate to Verify with National ID page first
       const targetUrl = `/apply/national-id-verification?type=${selectedLicenseType}`;
       console.log("Navigating to:", targetUrl);
 

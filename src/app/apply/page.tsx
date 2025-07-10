@@ -8,9 +8,11 @@ import {
   faInfoCircle,
   faShieldAlt,
   faCheckCircle,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplication } from "@/contexts/ApplicationContext";
+// import { supabaseAuthService } from "@/services/supabaseAuth";
 import {
   ApplicationSteps,
   LoadingSpinner,
@@ -24,6 +26,7 @@ export default function ApplyPage() {
   const [selectedLicenseType, setSelectedLicenseType] = useState<string>(
     applicationData.licenseType || ""
   );
+  const [checkingPermissions, setCheckingPermissions] = useState(false);
 
   useEffect(() => {
     setCurrentStep(1);
@@ -85,24 +88,51 @@ export default function ApplyPage() {
       color: "bg-orange-500",
     },
   ];
-  const handleStartApplication = () => {
+  const handleStartApplication = async () => {
     console.log("handleStartApplication called");
     console.log("selectedLicenseType:", selectedLicenseType);
     console.log("applicationData.licenseType:", applicationData.licenseType);
 
-    if (selectedLicenseType) {
-      console.log("Updating license type and navigating...");
-      updateLicenseType(selectedLicenseType);
-
-      // Navigate to Login with MOSIP page first
-      const targetUrl = `/apply/national-id-verification?type=${selectedLicenseType}`;
-      console.log("Navigating to:", targetUrl);
-
-      // Use router.push for navigation
-      router.push(targetUrl);
-    } else {
+    if (!selectedLicenseType) {
       console.log("No license type selected");
       alert("Please select a license type before continuing");
+      return;
+    }
+
+    console.log("Updating license type...");
+    updateLicenseType(selectedLicenseType);
+
+    // Check if user has existing permissions
+    setCheckingPermissions(true);
+
+    try {
+      // Check if user is already authenticated and has permissions
+      const hasPermissions = sessionStorage.getItem("permissions_completed");
+
+      if (hasPermissions === "true") {
+        console.log("✅ User has existing permissions, skipping verification");
+        // Navigate directly to the next step after verification
+        const targetUrl = `/apply/personal-info?type=${selectedLicenseType}`;
+        console.log("Navigating directly to:", targetUrl);
+        router.push(targetUrl);
+        return;
+      }
+
+      // If no permissions found, proceed with normal verification flow
+      console.log(
+        "📋 User needs verification, proceeding to verification form"
+      );
+      const targetUrl = `/apply/national-id-verification?type=${selectedLicenseType}`;
+      console.log("Navigating to:", targetUrl);
+      router.push(targetUrl);
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      // On error, default to verification flow
+      const targetUrl = `/apply/national-id-verification?type=${selectedLicenseType}`;
+      console.log("Error occurred, navigating to:", targetUrl);
+      router.push(targetUrl);
+    } finally {
+      setCheckingPermissions(false);
     }
   };
   return (
@@ -200,15 +230,30 @@ export default function ApplyPage() {
                     console.log("Button clicked!", e);
                     handleStartApplication();
                   }}
-                  disabled={!selectedLicenseType}
+                  disabled={!selectedLicenseType || checkingPermissions}
                   className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-inter font-medium transition-all ${
-                    selectedLicenseType
+                    selectedLicenseType && !checkingPermissions
                       ? "bg-[#2C8E5D] hover:bg-[#245A47] text-white"
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
                 >
-                  <span>Continue to Identity Verification</span>
-                  <FontAwesomeIcon icon={faArrowRight} className="w-4 h-4" />
+                  {checkingPermissions ? (
+                    <>
+                      <FontAwesomeIcon
+                        icon={faSpinner}
+                        className="w-4 h-4 animate-spin"
+                      />
+                      <span>Checking Status...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Continue Application</span>
+                      <FontAwesomeIcon
+                        icon={faArrowRight}
+                        className="w-4 h-4"
+                      />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
