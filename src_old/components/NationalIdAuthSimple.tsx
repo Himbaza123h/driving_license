@@ -144,7 +144,7 @@ export default function NationalIdAuth({
 
       if (!authResult.success) {
         console.log("❌ Auth initiation failed:", authResult.message);
-        setError(authResult.message || "Login with MOSIP failed");
+        setError(authResult.message || "Verify with National ID failed");
         return;
       }
 
@@ -232,7 +232,7 @@ export default function NationalIdAuth({
           />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Login with MOSIP
+          Verify with National ID
         </h2>
         <p className="text-gray-600 text-sm">
           {step === "id-entry"
@@ -460,9 +460,8 @@ export default function NationalIdAuth({
       {process.env.NODE_ENV === "development" && (
         <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-blue-800 text-xs text-center">
-            <strong> Mode:</strong> Using Supabase directly. Use any
-            13-digit National ID from the database and any 6-digit OTP for
-            testing.
+            <strong> Mode:</strong> Using Supabase directly. Use any 13-digit
+            National ID from the database and any 6-digit OTP for testing.
           </p>
         </div>
       )}

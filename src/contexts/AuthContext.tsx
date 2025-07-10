@@ -23,11 +23,13 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (emailOrPhone: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string, nationalId?: string, phoneNumber?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithNationalId: (nationalIdData: NationalIdData) => Promise<void>;
   signOut: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (password: string, access_token: string, refresh_token: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,11 +58,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(parsedUser);
           } else {
             localStorage.removeItem('user');
+            localStorage.removeItem('session');
           }
         }
       } catch (error) {
         console.warn('Failed to parse stored user data:', error);
         localStorage.removeItem('user');
+        localStorage.removeItem('session');
       } finally {
         setIsLoading(false);
       }
@@ -71,8 +75,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => clearTimeout(timer);
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    console.log('AuthContext: Starting sign in process for:', email);
+  const signIn = async (emailOrPhone: string, password: string) => {
+    console.log('AuthContext: Starting sign in process for:', emailOrPhone);
     
     try {
       const response = await fetch('/api/auth/login', {
@@ -80,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ emailOrPhone, password }),
       });
 
       const result = await response.json();
@@ -91,6 +95,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('AuthContext: Login failed with status:', response.status);
         console.log('AuthContext: Error message:', result.error);
         
+        // Handle specific error cases
+        if (response.status === 401) {
+          throw new Error('Invalid email/phone or password');
+        } else if (response.status === 404) {
+          throw new Error('Account not found');
+        } else if (response.status === 429) {
+          throw new Error('Too many login attempts. Please try again later.');
+        } else if (response.status >= 500) {
+          throw new Error('Server error. Please try again later.');
+        }
+        
         // Throw error with the specific message from the API
         throw new Error(result.error || 'Login failed');
       }
@@ -100,7 +115,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: result.user.id,
         email: result.user.email,
         name: result.profile?.full_name || result.user.email?.split('@')[0] || 'User',
-        provider: 'email'
+        provider: 'email',
+        nationalId: result.profile?.national_id || result.user.national_id
       };
       
       console.log('AuthContext: Setting user data:', userData);
@@ -122,6 +138,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       localStorage.removeItem('user');
       localStorage.removeItem('session');
+      
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error. Please check your connection and try again.');
+      }
       
       // Re-throw the error so the component can handle it
       throw error;
@@ -147,11 +168,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await response.json();
 
       if (!response.ok) {
+        // Handle specific error cases
+        if (response.status === 409) {
+          throw new Error('An account with this email already exists');
+        } else if (response.status === 400) {
+          throw new Error(result.error || 'Invalid registration data');
+        } else if (response.status >= 500) {
+          throw new Error('Server error. Please try again later.');
+        }
+        
         throw new Error(result.error || 'Signup failed');
       }
 
-      // Note: For signup, user might need to verify email first
-      // So we might not set the user immediately
       console.log('Signup successful:', result.message);
       
       // If you want to auto-login after signup, you can do:
@@ -159,6 +187,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
     } catch (error) {
       console.log('Sign up error:', error);
+      
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error. Please check your connection and try again.');
+      }
+      
       throw error; // Re-throw to be handled by the component
     }
   };
@@ -204,6 +238,104 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const forgotPassword = async (email: string) => {
+    console.log('AuthContext: Starting forgot password process for:', email);
+    
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const result = await response.json();
+      console.log('AuthContext: Forgot password API Response status:', response.status);
+      console.log('AuthContext: Forgot password API Response data:', result);
+
+      if (!response.ok) {
+        console.log('AuthContext: Forgot password failed with status:', response.status);
+        console.log('AuthContext: Error message:', result.error);
+        
+        // Handle specific error cases
+        if (response.status === 404) {
+          throw new Error('No account found with this email address');
+        } else if (response.status === 429) {
+          throw new Error('Too many reset requests. Please try again later.');
+        } else if (response.status >= 500) {
+          throw new Error('Server error. Please try again later.');
+        }
+        
+        throw new Error(result.error || 'Failed to send reset email');
+      }
+
+      console.log('AuthContext: Forgot password successful');
+      
+    } catch (error) {
+      console.log('AuthContext: Forgot password error:', error);
+      
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error. Please check your connection and try again.');
+      }
+      
+      throw error;
+    }
+  };
+
+  const resetPassword = async (password: string, access_token: string, refresh_token: string) => {
+    console.log('AuthContext: Starting reset password process');
+    
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password, access_token, refresh_token }),
+      });
+
+      const result = await response.json();
+      console.log('AuthContext: Reset password API Response status:', response.status);
+      console.log('AuthContext: Reset password API Response data:', result);
+
+      if (!response.ok) {
+        console.log('AuthContext: Reset password failed with status:', response.status);
+        console.log('AuthContext: Error message:', result.error);
+        
+        // Handle specific error cases
+        if (response.status === 401) {
+          throw new Error('Invalid or expired reset token');
+        } else if (response.status === 400) {
+          throw new Error(result.error || 'Invalid password format');
+        } else if (response.status >= 500) {
+          throw new Error('Server error. Please try again later.');
+        }
+        
+        throw new Error(result.error || 'Failed to reset password');
+      }
+
+      console.log('AuthContext: Reset password successful');
+      
+      // Clear any existing user data as the password has been reset
+      // User will need to log in again with new password
+      setUser(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('session');
+      
+    } catch (error) {
+      console.log('AuthContext: Reset password error:', error);
+      
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error. Please check your connection and try again.');
+      }
+      
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     try {
       setUser(null);
@@ -226,7 +358,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signUp,
       signInWithGoogle,
       signInWithNationalId,
-      signOut
+      signOut,
+      forgotPassword,
+      resetPassword
     }}>
       {children}
     </AuthContext.Provider>

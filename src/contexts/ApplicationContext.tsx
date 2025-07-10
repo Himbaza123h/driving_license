@@ -39,6 +39,7 @@ export interface PhotoInfo {
 }
 
 export interface ApplicationData {
+  emergencyContact: any;
   licenseType: string;
   personalInfo: Partial<PersonalInfo>;
   documents: DocumentInfo;

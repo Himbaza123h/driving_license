@@ -84,9 +84,7 @@ export default function NationalIdVerificationPage() {
     router.push("/apply/personal-info");
   };
 
-  const handleSkip = () => {
-    router.push("/apply/personal-info");
-  };
+
 
   const handleBack = () => {
     router.push("/apply");
@@ -108,7 +106,7 @@ export default function NationalIdVerificationPage() {
               </div>
               <div>
                 <h2 className="text-2xl font-inter font-bold text-gray-900">
-                  Login with MOSIP
+                  Verify with National ID
                 </h2>
                 <p className="text-gray-600 font-inter">
                   Verify your identity to speed up your application process
@@ -122,7 +120,7 @@ export default function NationalIdVerificationPage() {
               {/* Benefits of verification */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-inter font-medium text-blue-800 mb-2">
-                  Benefits of Login with MOSIP:
+                  Benefits of Verify with National ID:
                 </h3>
                 <ul className="text-sm text-blue-700 space-y-1">
                   <li>• Auto-fill your personal information</li>
@@ -143,7 +141,7 @@ export default function NationalIdVerificationPage() {
               </div>
 
               {/* Skip option */}
-              <div className="text-center pt-4 border-t border-gray-200">
+              {/* <div className="text-center pt-4 border-t border-gray-200">
                 <p className="text-gray-600 text-sm mb-3">
                   You can also continue without verification and fill the form
                   manually
@@ -154,7 +152,7 @@ export default function NationalIdVerificationPage() {
                 >
                   Skip verification and continue
                 </button>
-              </div>
+              </div> */}
             </div>
           ) : (
             /* Verification Success */
