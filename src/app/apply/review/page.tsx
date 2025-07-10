@@ -32,6 +32,7 @@ export default function ReviewPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [qrCodeData, setQrCodeData] = useState(null);
   const [submitError, setSubmitError] = useState("");
+  const [isGeneratingQR, setIsGeneratingQR] = useState(false);
 
   useEffect(() => {
     setCurrentStep(5);
@@ -164,10 +165,26 @@ export default function ReviewPage() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
-                onClick={() => router.push("/apply/qr-code")}
-                className="px-6 py-3 bg-[#2C8E5D] hover:bg-[#245A47] text-white rounded-lg transition-all font-inter font-medium"
+                onClick={() => {
+                  setIsGeneratingQR(true);
+                  router.push("/apply/qr-code");
+                }}
+                disabled={isGeneratingQR}
+                className="px-6 py-3 bg-[#2C8E5D] hover:bg-[#245A47] text-white rounded-lg transition-all font-inter font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Generate QR Code
+                {isGeneratingQR ? (
+                  <>
+                    <FontAwesomeIcon
+                      icon={faSpinner}
+                      className="w-4 h-4 animate-spin mr-2"
+                    />
+                    <span>Generating QR Code...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Generate QR Code</span>
+                  </>
+                )}
               </button>
               <button
                 onClick={() => router.push("/dashboard")}
@@ -235,126 +252,126 @@ export default function ReviewPage() {
     }
   };
 
-const handleSubmit = async () => {
-  console.log("🚀 handleSubmit function called!");
-  console.log("🔍 Current state:", { isSubmitting, isSubmitted, submitError });
-  console.log("📋 Application data:", applicationData);
-  
-  setIsSubmitting(true);
-  setSubmitError("");
-
-  try {
-    console.log("✅ Starting submission process...");
-
-    // 1. Verify we're on the client side
-    if (typeof window === "undefined") {
-      throw new Error("This action can only be performed on the client side");
-    }
-
-    // 2. Get nationalId from application data instead of sessionStorage
-    const nationalId = applicationData.personalInfo?.nationalId;
-
-    // 3. Try to get applicationId from sessionStorage, if not available, generate one
-    let applicationId = sessionStorage.getItem("applicationId");
-
-    if (!applicationId) {
-      // Generate a temporary application ID if not found
-      applicationId = `APP-${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(2, 8)
-        .toUpperCase()}`;
-      sessionStorage.setItem("applicationId", applicationId);
-    }
-
-    console.log("Retrieved/Generated application data:", {
-      applicationId,
-      nationalId,
+  const handleSubmit = async () => {
+    console.log("🚀 handleSubmit function called!");
+    console.log("🔍 Current state:", {
+      isSubmitting,
+      isSubmitted,
+      submitError,
     });
+    console.log("📋 Application data:", applicationData);
 
-    // 4. Validate required fields
-    if (!nationalId) {
-      throw new Error(
-        "Missing national ID. Please complete your personal information."
-      );
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      console.log("✅ Starting submission process...");
+
+      // 1. Verify we're on the client side
+      if (typeof window === "undefined") {
+        throw new Error("This action can only be performed on the client side");
+      }
+
+      // 2. Get nationalId from application data instead of sessionStorage
+      const nationalId = applicationData.personalInfo?.nationalId;
+
+      // 3. Try to get applicationId from sessionStorage, if not available, generate one
+      let applicationId = sessionStorage.getItem("applicationId");
+
+      if (!applicationId) {
+        // Generate a temporary application ID if not found
+        applicationId = `APP-${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(2, 8)
+          .toUpperCase()}`;
+        sessionStorage.setItem("applicationId", applicationId);
+      }
+
+      console.log("Retrieved/Generated application data:", {
+        applicationId,
+        nationalId,
+      });
+
+      // 4. Validate required fields
+      if (!nationalId) {
+        throw new Error(
+          "Missing national ID. Please complete your personal information."
+        );
+      }
+
+      if (!applicationData.licenseType || !applicationData.personalInfo) {
+        throw new Error("Incomplete application data");
+      }
+
+      // 5. Submit the application - removed the truthiness check
+      await submitApplication();
+
+      // 6. Generate QR code
+      const qrResponse = await fetch("/api/qr-codes/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          applicationId: applicationId,
+          nationalId: nationalId,
+          licenseType: applicationData.licenseType,
+          personalInfo: applicationData.personalInfo,
+        }),
+      });
+
+      if (!qrResponse.ok) {
+        const errorData = await qrResponse.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || "Failed to generate QR code. Please try again."
+        );
+      }
+
+      const qrResult = await qrResponse.json();
+
+      if (!qrResult.success) {
+        throw new Error(qrResult.error || "QR code generation failed");
+      }
+
+      // 7. Update state with successful submission
+      setQrCodeData(qrResult.data);
+      setIsSubmitted(true);
+
+      // 8. Store the successful submission data
+      sessionStorage.setItem("applicationSubmitted", "true");
+      sessionStorage.setItem("qrCodeData", JSON.stringify(qrResult.data));
+
+      // 9. Optional: Track successful submission
+      console.log("Application submitted successfully", {
+        applicationId,
+        nationalId,
+        qrData: qrResult.data,
+      });
+
+      // 10. Navigate to QR code page after successful submission
+      console.log("🎉 Submission successful! Navigating to QR code page...");
+      router.push("/apply/qr-code");
+    } catch (error) {
+      console.error("❌ Submission error:", error);
+
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred during submission";
+
+      setSubmitError(errorMessage);
+
+      // For network errors, suggest retrying
+      if (errorMessage.toLowerCase().includes("network")) {
+        setSubmitError(
+          `${errorMessage}. Please check your connection and try again.`
+        );
+      }
+    } finally {
+      console.log("🔄 Setting isSubmitting to false");
+      setIsSubmitting(false);
     }
-
-    if (!applicationData.licenseType || !applicationData.personalInfo) {
-      throw new Error("Incomplete application data");
-    }
-
-    // 5. Submit the application first
-    const submissionSuccess = await submitApplication();
-    if (!submissionSuccess) {
-      throw new Error("Failed to submit application data");
-    }
-
-    // 6. Generate QR code
-    const qrResponse = await fetch("/api/qr-codes/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        applicationId: applicationId,
-        nationalId: nationalId,
-        licenseType: applicationData.licenseType,
-        personalInfo: applicationData.personalInfo,
-      }),
-    });
-
-    if (!qrResponse.ok) {
-      const errorData = await qrResponse.json().catch(() => ({}));
-      throw new Error(
-        errorData.message || "Failed to generate QR code. Please try again."
-      );
-    }
-
-    const qrResult = await qrResponse.json();
-
-    if (!qrResult.success) {
-      throw new Error(qrResult.error || "QR code generation failed");
-    }
-
-    // 7. Update state with successful submission
-    setQrCodeData(qrResult.data);
-    setIsSubmitted(true);
-
-    // 8. Store the successful submission data
-    sessionStorage.setItem("applicationSubmitted", "true");
-    sessionStorage.setItem("qrCodeData", JSON.stringify(qrResult.data));
-
-    // 9. Optional: Track successful submission
-    console.log("Application submitted successfully", {
-      applicationId,
-      nationalId,
-      qrData: qrResult.data,
-    });
-
-    // 10. Navigate to QR code page after successful submission
-    console.log("🎉 Submission successful! Navigating to QR code page...");
-    router.push("/apply/qr-code");
-
-  } catch (error) {
-    console.error("❌ Submission error:", error);
-
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "An unexpected error occurred during submission";
-
-    setSubmitError(errorMessage);
-
-    // For network errors, suggest retrying
-    if (errorMessage.toLowerCase().includes("network")) {
-      setSubmitError(
-        `${errorMessage}. Please check your connection and try again.`
-      );
-    }
-  } finally {
-    console.log("🔄 Setting isSubmitting to false");
-    setIsSubmitting(false);
-  }
-};
+  };
 
   const handleBack = () => {
     router.push("/apply/photo");

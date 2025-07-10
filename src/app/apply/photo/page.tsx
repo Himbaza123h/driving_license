@@ -20,12 +20,50 @@ import {
   LoadingSpinner,
 } from "../components/ApplicationShared";
 
+// Add these helper functions after validatePhotoAndSignature:
+const saveToSessionStorage = (data: PhotoInfo) => {
+  try {
+    const sessionData = {
+      ...data,
+      timestamp: new Date().toISOString(),
+    };
+    sessionStorage.setItem("photoData", JSON.stringify(sessionData));
+    console.log("Saved to session storage:", sessionData);
+  } catch (error) {
+    console.error("Error saving to session storage:", error);
+  }
+};
+
+const loadFromSessionStorage = () => {
+  try {
+    const savedData = sessionStorage.getItem("photoData");
+    if (savedData) {
+      const parsed = JSON.parse(savedData);
+      console.log("Loaded from session storage:", parsed);
+      return parsed;
+    }
+  } catch (error) {
+    console.error("Error loading from session storage:", error);
+  }
+  return null;
+};
+
 export default function PhotoPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const { applicationData, updatePhoto, setCurrentStep } = useApplication();
 
-  const [photoData, setPhotoData] = useState<PhotoInfo>({});
+  const [photoData, setPhotoData] = useState<PhotoInfo>(() => {
+    // Initialize with session storage data if available
+    if (typeof window !== "undefined") {
+      const savedData = loadFromSessionStorage();
+      if (savedData) {
+        return savedData;
+      }
+    }
+    return {};
+  });
+
   const [isCapturingPhoto, setIsCapturingPhoto] = useState(false);
   const [isCapturingSignature, setIsCapturingSignature] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -38,9 +76,29 @@ export default function PhotoPage() {
   const isDrawingRef = useRef(false);
 
   useEffect(() => {
-    if (applicationData.photo) {
-      setPhotoData(applicationData.photo);
-    }
+    const loadSessionData = () => {
+      try {
+        const savedPhotoData = loadFromSessionStorage();
+        if (savedPhotoData) {
+          setPhotoData(savedPhotoData);
+          console.log(
+            "Loaded photo data from session storage:",
+            savedPhotoData
+          );
+        } else if (applicationData.photo) {
+          setPhotoData(applicationData.photo);
+          // Save to session storage if loading from application context
+          saveToSessionStorage(applicationData.photo);
+        }
+      } catch (error) {
+        console.error("Error loading session data:", error);
+        if (applicationData.photo) {
+          setPhotoData(applicationData.photo);
+        }
+      }
+    };
+
+    loadSessionData();
     setCurrentStep(4);
   }, [applicationData.photo, setCurrentStep]);
 
@@ -52,6 +110,19 @@ export default function PhotoPage() {
       }
     };
   }, []);
+
+  
+  useEffect(() => {
+  if (photoData.profilePhoto || photoData.signature) {
+    saveToSessionStorage(photoData);
+  }
+}, [photoData]);
+
+  useEffect(() => {
+    if (photoData.profilePhoto || photoData.signature) {
+      saveToSessionStorage(photoData);
+    }
+  }, [photoData]);
 
   // Show loading while checking authentication or redirecting
   if (isLoading) {
@@ -282,67 +353,121 @@ export default function PhotoPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const saveApplicationData = async () => {
-    try {
-      const applicationPayload = {
-        licenseType: applicationData.licenseType,
-        personalInfo: applicationData.personalInfo,
-        documents: applicationData.documents,
-        emergencyContact: applicationData.emergencyContact,
-        photo: photoData,
-      };
-
-      console.log("=== FRONTEND: Sending application data ===");
-      console.log(
-        "Application payload:",
-        JSON.stringify(applicationPayload, null, 2)
-      );
-
-      const response = await fetch("/api/license-applications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(applicationPayload),
-      });
-
-      const result = await response.json();
-
-      console.log("=== FRONTEND: API Response ===");
-      console.log("Response status:", response.status);
-      console.log("Response data:", JSON.stringify(result, null, 2));
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to save application");
-      }
-
-      return result;
-    } catch (error) {
-      console.error("=== FRONTEND: Error saving application ===");
-      console.error("Error:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      throw new Error(errorMessage);
+  // Add this new function after validatePhotoAndSignature:
+const uploadPhotosToServer = async () => {
+  try {
+    if (!photoData.profilePhoto && !photoData.signature) {
+      throw new Error("No photos to upload");
     }
-  };
 
-  // Updated handleNext with loading state and status update
+    const formData = new FormData();
+    
+    // Get personalInfo from session storage
+    const personalInfoData = sessionStorage.getItem("personalInfo");
+    if (!personalInfoData) {
+      throw new Error("Personal information not found in session storage");
+    }
+    
+    const personalInfo = JSON.parse(personalInfoData);
+    formData.append("nationalId", personalInfo.nationalId);
+    formData.append("licenseType", applicationData.licenseType);
+
+    // Convert base64 to blob and append files
+    if (photoData.profilePhoto) {
+      const photoBlob = await fetch(photoData.profilePhoto).then((r) =>
+        r.blob()
+      );
+      formData.append("profilePhoto", photoBlob, "profile_photo.jpg");
+    }
+
+    if (photoData.signature) {
+      const signatureBlob = await fetch(photoData.signature).then((r) =>
+        r.blob()
+      );
+      formData.append("signature", signatureBlob, "signature.png");
+    }
+
+    const response = await fetch("/api/apply/photos", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Failed to upload photos");
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error uploading photos:", error);
+    throw error;
+  }
+};
+
+  // const saveApplicationData = async () => {
+  //   try {
+  //     const applicationPayload = {
+  //       licenseType: applicationData.licenseType,
+  //       personalInfo: applicationData.personalInfo,
+  //       documents: applicationData.documents,
+  //       emergencyContact: applicationData.emergencyContact,
+  //       photo: photoData,
+  //     };
+
+  //     console.log("=== FRONTEND: Sending application data ===");
+  //     console.log(
+  //       "Application payload:",
+  //       JSON.stringify(applicationPayload, null, 2)
+  //     );
+
+  //     const response = await fetch("/api/license-applications", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify(applicationPayload),
+  //     });
+
+  //     const result = await response.json();
+
+  //     console.log("=== FRONTEND: API Response ===");
+  //     console.log("Response status:", response.status);
+  //     console.log("Response data:", JSON.stringify(result, null, 2));
+
+  //     if (!response.ok) {
+  //       throw new Error(result.error || "Failed to save application");
+  //     }
+
+  //     return result;
+  //   } catch (error) {
+  //     console.error("=== FRONTEND: Error saving application ===");
+  //     console.error("Error:", error);
+  //     const errorMessage =
+  //       error instanceof Error ? error.message : "Unknown error occurred";
+  //     throw new Error(errorMessage);
+  //   }
+  // };
+
   const handleNext = async () => {
     if (validatePhotoAndSignature()) {
       updatePhoto(photoData);
 
       try {
-        setIsSubmitting(true); // Start loading
+        setIsSubmitting(true);
         setErrors((prev) => ({ ...prev, saving: "" }));
 
-        console.log("Starting application save...");
-        const result = await saveApplicationData();
-        console.log("Application saved successfully:", result);
+        console.log("Starting photo upload...");
 
-        if (result.success) {
+        // Upload photos to server - this now also sets status to submitted
+        const uploadResult = await uploadPhotosToServer();
+        console.log("Photos uploaded successfully:", uploadResult);
+
+        if (uploadResult.success) {
           // Store the application ID and national ID in session storage
-          const applicationId = result.data?.applicationId;
-          const nationalId = applicationData.personalInfo.nationalId;
+          const applicationId =
+            uploadResult.applicationId || uploadResult.data?.applicationId;
+          const nationalId = uploadResult.data?.nationalId;
 
           if (applicationId && nationalId) {
             sessionStorage.setItem("applicationId", applicationId);
@@ -353,47 +478,15 @@ export default function PhotoPage() {
             });
           }
 
-          // Update application status to 'submitted' after saving
-          try {
-            const statusUpdateResponse = await fetch(
-              `/api/license-applications`,
-              {
-                method: "PUT",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  applicationId: result.data?.applicationId,
-                  updateData: {
-                    status: "submitted",
-                    submittedAt: new Date().toISOString(),
-                  },
-                }),
-              }
-            );
-
-            const statusResult = await statusUpdateResponse.json();
-
-            if (statusResult.success) {
-              console.log("Application status updated to submitted");
-            } else {
-              console.error(
-                "Failed to update application status:",
-                statusResult.error
-              );
-              // Continue anyway, just log the error
-            }
-          } catch (statusError) {
-            console.error("Error updating status:", statusError);
-            // Continue anyway, just log the error
-          }
+          // Clear photo data from session storage after successful upload
+          sessionStorage.removeItem("photoData");
 
           // Navigate to review page
           router.push("/apply/review");
         } else {
           setErrors((prev) => ({
             ...prev,
-            saving: result.error || "Failed to save application",
+            saving: uploadResult.error || "Failed to upload photos",
           }));
         }
       } catch (error) {
@@ -407,12 +500,14 @@ export default function PhotoPage() {
           saving: errorMessage,
         }));
       } finally {
-        setIsSubmitting(false); // Stop loading
+        setIsSubmitting(false);
       }
     } else {
       console.log("Validation failed");
     }
   };
+
+
 
   // Updated handleSubmitApplication
   const handleSubmitApplication = async () => {
@@ -718,7 +813,7 @@ export default function PhotoPage() {
               {isSubmitting ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Saving...</span>
+                  <span>Uploading photos...</span>
                 </>
               ) : (
                 <>
