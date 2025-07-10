@@ -18,6 +18,20 @@ export async function POST(request) {
       );
     }
 
+    // Clean and validate email
+    const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      console.log("❌ Email validation failed:", cleanEmail);
+      return NextResponse.json(
+        { error: "Please enter a valid email address" },
+        { status: 400 }
+      );
+    }
+
+    // Log the cleaned email for debugging
+    console.log("📧 Email validation:", { original: email, cleaned: cleanEmail });
+
     // Validate National ID format (13-16 digits)
     const nationalIdRegex = /^[0-9]{13,16}$/;
     if (!nationalIdRegex.test(nationalId)) {
@@ -38,7 +52,7 @@ export async function POST(request) {
       );
     }
 
-    // Process National ID - MOVED TO TOP
+    // Process National ID
     const limitNationalId = (nationalId) => {
       if (!nationalId) return nationalId;
       // Remove all non-digit characters
@@ -50,49 +64,58 @@ export async function POST(request) {
     const processedNationalId = limitNationalId(nationalId);
     console.log("🔢 National ID processing:", { original: nationalId, processed: processedNationalId });
 
-    // Check if email already exists in auth.users
-    console.log("🔍 Checking for existing auth user...");
-    const { data: existingAuthUser } = await supabaseAdmin
-      .from("auth.users")
-      .select("email")
-      .eq("email", email)
+    // Check if user already exists in our users table by email
+    console.log("🔍 Checking for existing user with email...");
+    const { data: existingUserByEmail } = await supabaseAdmin
+      .from("users")
+      .select("email, national_id, phone_number")
+      .eq("email", cleanEmail)
       .single();
 
-    if (existingAuthUser) {
-      console.log("❌ Auth user already exists:", email);
+    if (existingUserByEmail) {
+      console.log("❌ User with email already exists:", existingUserByEmail);
       return NextResponse.json(
         { error: "An account with this email already exists" },
         { status: 409 }
       );
     }
-    console.log("✅ No existing auth user found");
+    console.log("✅ No existing user found with email");
 
-    // Check if user already exists in our users table by national_id or phone_number
-    console.log("🔍 Checking for existing user in users table...");
-    const { data: existingUser } = await supabaseAdmin
+    // Check if user already exists in our users table by national_id
+    console.log("🔍 Checking for existing user with national ID...");
+    const { data: existingUserByNationalId } = await supabaseAdmin
       .from("users")
-      .select("national_id, phone_number, email")
-      .or(`national_id.eq.${nationalId},phone_number.eq.${phoneNumber}`)
+      .select("national_id, email, full_name")
+      .eq("national_id", nationalId)
       .single();
 
-    if (existingUser) {
-      console.log("❌ User already exists:", existingUser);
-      if (existingUser.national_id === nationalId) {
-        return NextResponse.json(
-          { error: "User with this National ID already exists" },
-          { status: 409 }
-        );
-      }
-      if (existingUser.phone_number === phoneNumber) {
-        return NextResponse.json(
-          { error: "User with this phone number already exists" },
-          { status: 409 }
-        );
-      }
+    if (existingUserByNationalId) {
+      console.log("❌ User with national ID already exists:", existingUserByNationalId);
+      return NextResponse.json(
+        { error: "User with this National ID already exists" },
+        { status: 409 }
+      );
     }
-    console.log("✅ No existing user found");
+    console.log("✅ No existing user found with national ID");
 
-    // Check if citizen already exists - NOW processedNationalId is defined
+    // Check if user already exists in our users table by phone number
+    console.log("🔍 Checking for existing user with phone number...");
+    const { data: existingUserByPhone } = await supabaseAdmin
+      .from("users")
+      .select("phone_number, email, full_name")
+      .eq("phone_number", phoneNumber)
+      .single();
+
+    if (existingUserByPhone) {
+      console.log("❌ User with phone number already exists:", existingUserByPhone);
+      return NextResponse.json(
+        { error: "User with this phone number already exists" },
+        { status: 409 }
+      );
+    }
+    console.log("✅ No existing user found with phone number");
+
+    // Check if citizen already exists
     console.log("🔍 Checking for existing citizen...");
     const { data: existingCitizen } = await supabaseAdmin
       .from("citizens")
@@ -111,32 +134,52 @@ export async function POST(request) {
 
     // Create user with Supabase Auth
     console.log("👤 Creating auth user...");
-    const { data: authData, error: authError } =
-      await supabaseAdmin.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            national_id: nationalId,
-            phone_number: phoneNumber,
-          },
+    console.log("Auth signup data:", { 
+      email: cleanEmail, 
+      password: password ? "***" : "missing",
+      userData: {
+        full_name: fullName,
+        national_id: nationalId,
+        phone_number: phoneNumber,
+      }
+    });
+
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          national_id: nationalId,
+          phone_number: phoneNumber,
         },
-      });
+      },
+    });
 
     if (authError) {
       console.log("❌ Auth creation failed:", authError);
+      console.log("Auth error details:", JSON.stringify(authError, null, 2));
+      
       // Handle specific Supabase auth errors
-      if (authError.message.includes("User already registered")) {
+      if (authError.message.includes("User already registered") || 
+          authError.code === 'email_address_invalid' || 
+          authError.message.includes("already registered") ||
+          authError.message.includes("already exists")) {
         return NextResponse.json(
           { error: "An account with this email already exists" },
           { status: 409 }
         );
       }
 
-      if (
-        authError.message.includes("Password should be at least 6 characters")
-      ) {
+      if (authError.message.includes("Database error saving new user") ||
+          authError.code === 'unexpected_failure') {
+        return NextResponse.json(
+          { error: "User with this information already exists" },
+          { status: 409 }
+        );
+      }
+
+      if (authError.message.includes("Password should be at least 6 characters")) {
         return NextResponse.json(
           { error: "Password must be at least 6 characters long" },
           { status: 400 }
@@ -164,7 +207,7 @@ export async function POST(request) {
         .insert({
           id: authData.user.id,
           full_name: fullName,
-          email: email,
+          email: cleanEmail,
           national_id: nationalId,
           phone_number: phoneNumber,
           created_at: new Date().toISOString(),
@@ -173,12 +216,13 @@ export async function POST(request) {
 
       if (userTableError) {
         console.error("❌ User table insert error:", userTableError);
+        console.error("User table error details:", JSON.stringify(userTableError, null, 2));
         // Note: Auth user is already created, so we log the error but don't fail the request
       } else {
         console.log("✅ User record created successfully");
       }
 
-      // Create citizen record - FIX: Use processedNationalId consistently
+      // Create citizen record
       console.log("👥 Creating citizen record...");
       console.log("Citizen data to insert:", {
         national_id: processedNationalId,
@@ -186,7 +230,7 @@ export async function POST(request) {
         date_of_birth: "2000-01-01",
         address: "Burundi, Bujumbura",
         phone_number: phoneNumber,
-        email: email,
+        email: cleanEmail,
         photo_url: null,
         status: "ACTIVE"
       });
@@ -194,12 +238,12 @@ export async function POST(request) {
       const { data: citizenData, error: citizenError } = await supabaseAdmin
         .from("citizens")
         .insert({
-          national_id: processedNationalId, // FIX: Use processedNationalId instead of nationalId
+          national_id: processedNationalId,
           full_name: fullName,
           date_of_birth: "2000-01-01",
           address: "Burundi, Bujumbura",
           phone_number: phoneNumber,
-          email: email,
+          email: cleanEmail,
           photo_url: null,
           status: "ACTIVE",
           created_at: new Date().toISOString(),
@@ -227,7 +271,8 @@ export async function POST(request) {
           gender_permission: false,
           name_permission: false,
           phone_number_permission: false,
-          picture_permission: false
+          picture_permission: false,
+          is_verified: false
         });
 
         const { error: permissionsError } = await supabaseAdmin
@@ -235,12 +280,14 @@ export async function POST(request) {
           .insert({
             citizen_id: citizenData.id,
             national_id: processedNationalId,
+            email: cleanEmail,
             email_permission: false,
             birthdate_permission: false,
             gender_permission: false,
             name_permission: false,
             phone_number_permission: false,
             picture_permission: false,
+            is_verified: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });

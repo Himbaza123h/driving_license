@@ -14,45 +14,126 @@ function generateTransactionId() {
 
 export async function POST(request) {
   try {
-    const { nationalId } = await request.json();
+    const { nationalId, email } = await request.json();
 
-    if (!nationalId) {
+    if (!nationalId && !email) {
       return NextResponse.json(
-        { success: false, message: 'National ID is required' },
+        { success: false, message: 'National ID or email is required' },
         { status: 400 }
       );
     }
 
-    console.log('🔍 API: Looking up National ID:', nationalId);
+    console.log('🔍 API: Looking up with National ID:', nationalId, 'Email:', email);
 
-    // Look up citizen in supabaseAdmin
-    const { data: citizen, error } = await supabaseAdmin
-      .from('citizens')
-      .select('*')
-      .eq('national_id', nationalId)
-      .eq('status', 'ACTIVE')
-      .single();
+    // First, try to find citizen by both email and national ID
+    let citizen = null;
+    let citizenError = null;
 
-    if (error) {
-      console.log('❌ API: supabaseAdmin error:', error);
+    // Check if both email and national ID match
+    if (email && nationalId) {
+      const { data: citizenByBoth, error: bothError } = await supabaseAdmin
+        .from("citizens")
+        .select("*")
+        .eq("national_id", nationalId)
+        .eq("email", email)
+        .eq('status', 'ACTIVE')
+        .single();
+
+      if (!bothError && citizenByBoth) {
+        console.log("✅ API: Found citizen with both email and national ID match");
+        citizen = citizenByBoth;
+        citizenError = null;
+      } else {
+        // Try matching by email only
+        const { data: citizenByEmail, error: emailError } = await supabaseAdmin
+          .from("citizens")
+          .select("*")
+          .eq("email", email)
+          .eq('status', 'ACTIVE')
+          .single();
+
+        if (!emailError && citizenByEmail) {
+          console.log("✅ API: Found citizen with email match");
+          citizen = citizenByEmail;
+          citizenError = null;
+        } else {
+          // Try matching by national ID only
+          const { data: citizenByNationalId, error: nationalIdError } = await supabaseAdmin
+            .from("citizens")
+            .select("*")
+            .eq("national_id", nationalId)
+            .eq('status', 'ACTIVE')
+            .single();
+
+          if (!nationalIdError && citizenByNationalId) {
+            console.log("✅ API: Found citizen with national ID match");
+            citizen = citizenByNationalId;
+            citizenError = null;
+          } else {
+            citizen = null;
+            citizenError = nationalIdError;
+          }
+        }
+      }
+    } else if (email) {
+      // Only check by email
+      const { data: citizenByEmail, error: emailError } = await supabaseAdmin
+        .from("citizens")
+        .select("*")
+        .eq("email", email)
+        .eq('status', 'ACTIVE')
+        .single();
+
+      citizen = citizenByEmail;
+      citizenError = emailError;
+    } else {
+      // Only check by national ID
+      const { data: citizenByNationalId, error: nationalIdError } = await supabaseAdmin
+        .from("citizens")
+        .select("*")
+        .eq("national_id", nationalId)
+        .eq('status', 'ACTIVE')
+        .single();
+
+      citizen = citizenByNationalId;
+      citizenError = nationalIdError;
+    }
+
+    // Fallback approach if citizen not found and national ID is longer than 13 digits
+    if (citizenError && nationalId && nationalId.length > 13) {
+      const truncatedNationalId = nationalId.substring(0, 13);
+      console.log('=== TRYING TRUNCATED NATIONAL ID ===');
+      console.log('Original National ID:', nationalId);
+      console.log('Truncated to 13 digits:', truncatedNationalId);
+
+      const { data: truncatedCitizen, error: truncatedError } = await supabaseAdmin
+        .from("citizens")
+        .select("*")
+        .eq("national_id", truncatedNationalId)
+        .eq('status', 'ACTIVE')
+        .single();
+
+      if (!truncatedError && truncatedCitizen) {
+        console.log('✅ API: Found citizen with truncated national ID');
+        citizen = truncatedCitizen;
+        citizenError = null;
+      } else {
+        console.log('❌ API: No citizen found with truncated national ID either');
+      }
+    }
+
+    if (citizenError || !citizen) {
+      console.log('❌ API: No citizen found for provided credentials');
       
-      if (error.code === 'PGRST116') {
+      if (citizenError && citizenError.code === 'PGRST116') {
         return NextResponse.json(
-          { success: false, message: 'National ID not found. Please check and try again.' },
+          { success: false, message: 'National ID or email not found. Please check and try again.' },
           { status: 404 }
         );
       }
       
       return NextResponse.json(
-        { success: false, message: `Database error: ${error.message}` },
-        { status: 500 }
-      );
-    }
-
-    if (!citizen) {
-      console.log('❌ API: No citizen found for National ID:', nationalId);
-      return NextResponse.json(
-        { success: false, message: 'National ID not found. Please check and try again.' },
+        { success: false, message: 'Citizen not found with this national ID or email' },
         { status: 404 }
       );
     }
