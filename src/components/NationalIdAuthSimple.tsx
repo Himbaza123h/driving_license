@@ -13,7 +13,7 @@ import {
   faToggleOff,
   faToggleOn,
 } from "@fortawesome/free-solid-svg-icons";
-import { supabaseAuthService, type CitizenData } from "@/services/supabaseAuth";
+import { type CitizenData } from "@/services/supabaseAuth";
 
 interface NationalIdAuthProps {
   onSuccess: (userData: CitizenData) => void;
@@ -121,16 +121,50 @@ export default function NationalIdAuth({
     };
   }, []);
 
+  // Check if user is already verified
+  useEffect(() => {
+    const checkUserVerification = async () => {
+      if (!user?.email) return;
+
+      try {
+        const response = await fetch(
+          `/api/permissions/check-verified?email=${user.email}`
+        );
+        if (response.ok) {
+          const result = await response.json();
+          if (result.isVerified) {
+            console.log("✅ User is already verified, skipping verification");
+            // Get citizen data and proceed directly
+            const citizenData: CitizenData = {
+              id: result.nationalId, // Using nationalId as id
+              nationalId: result.nationalId,
+              fullName: user.name || user.email || "User",
+              dateOfBirth: "",
+              address: "",
+              phoneNumber: "",
+              email: user.email,
+              status: "",
+            };
+            onSuccess(citizenData);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking verification:", error);
+      }
+    };
+
+    checkUserVerification();
+  }, [user, onSuccess]);
+
   const validateNationalId = (id: string): boolean => {
     // Clean the input - remove any whitespace
     const cleanId = id.trim().replace(/\s+/g, "");
     console.log("Validating National ID:", cleanId, "Length:", cleanId.length);
 
-    // Burundi National ID format: Accept 13-digit format (as per setup.sql)
-    // Example: 1198700123456 (13 digits)
-    const burundianIdPattern = /^\d{13}$/;
-    const isValid = burundianIdPattern.test(cleanId);
-    console.log("Validation result:", isValid, "(expecting 13 digits)");
+    // Accept any non-empty string (remove 13-digit requirement)
+    const isValid = cleanId.length > 0;
+    console.log("Validation result:", isValid);
     return isValid;
   };
 
@@ -180,7 +214,7 @@ export default function NationalIdAuth({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ nationalId: cleanNationalId }),
+        body: JSON.stringify({ nationalId: cleanNationalId, email: user?.email }),
       });
 
       const authResult = await response.json();
@@ -217,102 +251,100 @@ export default function NationalIdAuth({
     }
   };
 
-  const handleOtpSubmit = async (e: { preventDefault: () => void; }) => {
-    e.preventDefault();
+const handleOtpSubmit = async (e: { preventDefault: () => void }) => {
+  e.preventDefault();
 
-    if (otp.length !== 6) {
-      setError("Please enter a valid 6-digit OTP");
+  if (otp.length !== 6) {
+    setError("Please enter a valid 6-digit OTP");
+    return;
+  }
+
+  console.log("🔄 Starting OTP verification");
+  setLoading(true);
+  setError("");
+
+  try {
+    console.log("Verifying OTP:", { nationalId, otp, transactionId });
+
+    // Call the OTP verification API
+    const response = await fetch("/api/auth/verifyotp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        nationalId,
+        otp,
+        transactionId,
+      }),
+    });
+
+    const verifyResult = await response.json();
+    console.log("OTP verification result:", verifyResult);
+
+    if (!verifyResult.success) {
+      console.log("❌ OTP verification failed:", verifyResult.message);
+      setError(verifyResult.message || "OTP verification failed");
       return;
     }
 
-    console.log("🔄 Starting OTP verification");
-    setLoading(true);
-    setError("");
+    if (!verifyResult.citizenData) {
+      console.log("❌ No citizen data returned");
+      setError("Authentication failed: No user data");
+      return;
+    }
 
+    // SUCCESS - Store citizen data and check if user is verified
+    console.log("✅ OTP verification successful! Checking user verification status...");
+    setCitizenData(verifyResult.citizenData);
+
+    // Check if user is verified in user_permissions table
     try {
-      console.log("Verifying OTP:", { nationalId, otp, transactionId });
+      const verificationResponse = await fetch(
+        `/api/permissions/check-verified?email=${user?.email}`
+      );
 
-      // Call the OTP verification API
-      const response = await fetch("/api/auth/verifyotp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nationalId,
-          otp,
-          transactionId,
-        }),
-      });
-
-      const verifyResult = await response.json();
-      console.log("OTP verification result:", verifyResult);
-
-      if (!verifyResult.success) {
-        console.log("❌ OTP verification failed:", verifyResult.message);
-        setError(verifyResult.message || "OTP verification failed");
-        return;
-      }
-
-      if (!verifyResult.citizenData) {
-        console.log("❌ No citizen data returned");
-        setError("Authentication failed: No user data");
-        return;
-      }
-
-      // SUCCESS - Store citizen data and move to permissions
-      console.log("✅ OTP verification successful! Checking permissions...");
-      setCitizenData(verifyResult.citizenData);
-
-      // Check if user has existing permissions
-      try {
-        const apiUrl =
-          process.env.NODE_ENV === "development"
-            ? "/api/permissions"
-            : `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/permissions`;
-
-        const permissionsResponse = await fetch(
-          `${apiUrl}?nationalId=${verifyResult.citizenData.nationalId}`
-        );
-
-        if (permissionsResponse.ok) {
-          // User has existing permissions, skip to success
-          console.log(
-            "✅ User has existing permissions, skipping permissions step"
-          );
+      if (verificationResponse.ok) {
+        const verificationResult = await verificationResponse.json();
+        
+        if (verificationResult.isVerified) {
+          // User is verified, skip permissions step
+          console.log("✅ User is verified, skipping permissions step");
           setSuccess("Authentication successful! Welcome back.");
-
+          
           // Mark permissions as completed
           sessionStorage.setItem("permissions_completed", "true");
-
+          
           setTimeout(() => {
             if (verifyResult.citizenData) {
-              onSuccess(verifyResult.citizenData);
+              onSuccess(verifyResult.citizenData); // 🎯 GO DIRECTLY TO SUCCESS
             }
           }, 1000);
         } else {
-          // User doesn't have permissions, show permissions step
-          console.log("📋 User needs to set permissions");
+          // User is not verified, show permissions step
+          console.log("📋 User is not verified, showing permissions step");
           setStep("permissions");
-          setSuccess(
-            "Authentication successful! Please review data sharing permissions."
-          );
+          setSuccess("Authentication successful! Please review data sharing permissions.");
         }
-      } catch (error) {
-        console.error("Error checking permissions:", error);
-        // On error, default to showing permissions step
+      } else {
+        // Error checking verification, default to showing permissions step
+        console.log("❌ Error checking verification status, showing permissions step");
         setStep("permissions");
-        setSuccess(
-          "Authentication successful! Please review data sharing permissions."
-        );
+        setSuccess("Authentication successful! Please review data sharing permissions.");
       }
     } catch (error) {
-      console.error("OTP verification error:", error);
-      setError("Verification failed. Please try again.");
-    } finally {
-      setLoading(false);
+      console.error("Error checking verification status:", error);
+      // On error, default to showing permissions step
+      setStep("permissions");
+      setSuccess("Authentication successful! Please review data sharing permissions.");
     }
-  };
+  } catch (error) {
+    console.error("OTP verification error:", error);
+    setError("Verification failed. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handlePermissionToggle = (permission: keyof typeof permissions) => {
     setPermissions((prev) => ({
@@ -350,6 +382,7 @@ export default function NationalIdAuth({
         body: JSON.stringify({
           nationalId,
           permissions,
+          email: user?.email, // Add email to request
         }),
       });
 
@@ -361,12 +394,27 @@ export default function NationalIdAuth({
       const result = await response.json();
       console.log("Permissions saved:", result);
 
-      // The response will tell you if it was an update or new creation
-      if (result.isUpdate) {
-        setSuccess("Permissions updated successfully! Redirecting...");
-      } else {
-        setSuccess("Permissions saved successfully! Redirecting...");
-      }
+      // Update is_verified to true
+      // try {
+      //   const verifyResponse = await fetch("/api/permissions/verify", {
+      //     method: "POST",
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //     },
+      //     body: JSON.stringify({
+      //       email: user?.email,
+      //       nationalId: nationalId,
+      //     }),
+      //   });
+
+      //   if (verifyResponse.ok) {
+      //     console.log("✅ User verification status updated");
+      //   }
+      // } catch (verifyError) {
+      //   console.error("Error updating verification status:", verifyError);
+      // }
+
+      setSuccess("Permissions saved successfully! Redirecting...");
 
       // Mark permissions as completed
       sessionStorage.setItem("permissions_completed", "true");
@@ -568,10 +616,10 @@ export default function NationalIdAuth({
               ref={submitButtonRef}
               type="submit"
               disabled={
-                !nationalId || nationalId.length !== 13 || loading || isLoading
+                !nationalId || nationalId.length === 0 || loading || isLoading
               }
               className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-lg transition-all font-medium ${
-                !nationalId || nationalId.length !== 13 || loading || isLoading
+                !nationalId || nationalId.length === 0 || loading || isLoading
                   ? "bg-gray-400 text-gray-600 cursor-not-allowed opacity-60"
                   : "bg-green-600 hover:bg-green-700 text-white cursor-pointer"
               }`}

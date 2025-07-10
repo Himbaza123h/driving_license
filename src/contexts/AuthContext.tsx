@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Handle specific error cases
         if (response.status === 401) {
-          throw new Error('Invalid email/phone or password');
+          throw new Error('Unverified, invalid email/phone or password ');
         } else if (response.status === 404) {
           throw new Error('Account not found');
         } else if (response.status === 429) {
@@ -149,53 +149,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (email: string, password: string, name: string, nationalId?: string, phoneNumber?: string) => {
-    try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          fullName: name, 
-          email, 
-          password, 
-          nationalId, 
-          phoneNumber 
-        }),
-      });
+const signUp = async (email: string, password: string, name: string, nationalId?: string, phoneNumber?: string) => {
+  try {
+    const response = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        fullName: name, 
+        email, 
+        password, 
+        nationalId, 
+        phoneNumber 
+      }),
+    });
 
-      const result = await response.json();
+    const result = await response.json();
 
-      if (!response.ok) {
-        // Handle specific error cases
-        if (response.status === 409) {
-          throw new Error('An account with this email already exists');
-        } else if (response.status === 400) {
-          throw new Error(result.error || 'Invalid registration data');
-        } else if (response.status >= 500) {
-          throw new Error('Server error. Please try again later.');
-        }
-        
-        throw new Error(result.error || 'Signup failed');
-      }
-
-      console.log('Signup successful:', result.message);
-      
-      // If you want to auto-login after signup, you can do:
-      // await signIn(email, password);
-      
-    } catch (error) {
-      console.log('Sign up error:', error);
-      
-      // Handle network errors
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Network error. Please check your connection and try again.');
+    if (!response.ok) {
+      // Handle specific error cases with proper error messages
+      if (response.status === 409) {
+        // Pass through the specific error message from the server
+        throw new Error(result.error || 'An account with this information already exists');
+      } else if (response.status === 400) {
+        throw new Error(result.error || 'Invalid registration data');
+      } else if (response.status >= 500) {
+        throw new Error('Server error. Please try again later.');
       }
       
-      throw error; // Re-throw to be handled by the component
+      throw new Error(result.error || 'Signup failed');
     }
-  };
+
+    console.log('Signup successful:', result.message);
+    
+    // If you want to auto-login after signup, you can do:
+    // await signIn(email, password);
+    
+  } catch (error) {
+    console.log('Sign up error:', error);
+    
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    
+    throw error; // Re-throw to be handled by the component
+  }
+};
 
   const signInWithGoogle = async () => {
     try {

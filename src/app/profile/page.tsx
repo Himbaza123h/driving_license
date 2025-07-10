@@ -116,20 +116,14 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleSavePermissions = async () => {
-    const nationalId = sessionStorage.getItem("user_national_id");
-
-    if (!nationalId) {
-      console.error("No national ID found in session storage");
-      // Show error message or handle this case
+    if (!user?.nationalId) {
+      console.error("No national ID found for logged in user");
+      setPermissionsError("National ID not found");
       return;
     }
 
-    setIsLoadingPermissions(true);
-    setPermissionsError("");
-    setPermissionsSuccess("");
-
     try {
-      const response = await fetch("/api/permissions", {
+      const response = await fetch("/api/permissions/profile", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -137,24 +131,25 @@ const ProfilePage: React.FC = () => {
         body: JSON.stringify({
           nationalId: user.nationalId,
           permissions: permissions,
+          email: user.email,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setPermissionsSuccess("Permissions saved successfully!");
-        setTimeout(() => setPermissionsSuccess(""), 4000);
+        setPermissionsSuccess("Permissions updated successfully");
+        setPermissionsError("");
+        // Clear success message after 3 seconds
+        setTimeout(() => setPermissionsSuccess(""), 3000);
       } else {
-        setPermissionsError(data.message || "Failed to save permissions");
-        setTimeout(() => setPermissionsError(""), 4000);
+        setPermissionsError(data.error || "Failed to update permissions");
+        setPermissionsSuccess("");
       }
     } catch (error) {
-      console.error("Error saving permissions:", error);
-      setPermissionsError("Failed to save permissions");
-      setTimeout(() => setPermissionsError(""), 4000);
-    } finally {
-      setIsLoadingPermissions(false);
+      console.error("Error updating permissions:", error);
+      setPermissionsError("Failed to update permissions");
+      setPermissionsSuccess("");
     }
   };
 
@@ -264,8 +259,6 @@ const ProfilePage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Name Field */}
-                  {/* Name Field */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Full Name
@@ -298,8 +291,6 @@ const ProfilePage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Email Field */}
-                  {/* Email Field */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Email Address
@@ -401,168 +392,165 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              {sessionStorage.getItem("user_national_id") && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
-                  <div className="mb-6">
-                    <h2 className="text-xl font-inter font-semibold text-gray-900">
-                      Data Privacy & Permissions
-                    </h2>
-                    <p className="text-sm text-gray-500 font-inter mt-1">
-                      Control what information can be shared when verifying your
-                      identity
+              {/* {sessionStorage.getItem("user_national_id") && ( */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+                <div className="mb-6">
+                  <h2 className="text-xl font-inter font-semibold text-gray-900">
+                    Data Privacy & Permissions
+                  </h2>
+                  <p className="text-sm text-gray-500 font-inter mt-1">
+                    Control what information can be shared when verifying your
+                    identity
+                  </p>
+                </div>
+
+                {permissionsError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-700 font-inter">
+                      {permissionsError}
                     </p>
                   </div>
+                )}
 
-                  {permissionsError && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-700 font-inter">
-                        {permissionsError}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                    {(
-                      [
-                        {
-                          key: "email" as const,
-                          label: "Email Address",
-                          description:
-                            "Allow sharing your email address for communication",
-                        },
-                        {
-                          key: "name" as const,
-                          label: "Full Name",
-                          description:
-                            "Allow sharing your full name during verification",
-                        },
-                        {
-                          key: "birthdate" as const,
-                          label: "Date of Birth",
-                          description:
-                            "Allow sharing your birth date for age verification",
-                        },
-                        {
-                          key: "gender" as const,
-                          label: "Gender",
-                          description: "Allow sharing your gender information",
-                        },
-                        {
-                          key: "phoneNumber" as const,
-                          label: "Phone Number",
-                          description:
-                            "Allow sharing your phone number for contact",
-                        },
-                        {
-                          key: "picture" as const,
-                          label: "Profile Picture",
-                          description:
-                            "Allow sharing your profile picture for identification",
-                        },
-                      ] as const
-                    ).map((item) => (
-                      <div
-                        key={item.key}
-                        className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <FontAwesomeIcon
-                            icon={
-                              permissions[item.key] ? faToggleOn : faToggleOff
-                            }
-                            className={`w-6 h-6 ${
-                              permissions[item.key]
-                                ? "text-[#2C8E5D]"
-                                : "text-gray-400"
-                            }`}
-                          />
-                          <div>
-                            <h3 className="font-inter font-medium text-gray-900">
-                              {item.label}
-                            </h3>
-                            <p className="font-inter text-sm text-gray-500">
-                              {item.description}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handlePermissionToggle(item.key)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            permissions[item.key]
-                              ? "bg-[#2C8E5D]"
-                              : "bg-gray-200"
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              permissions[item.key]
-                                ? "translate-x-6"
-                                : "translate-x-1"
-                            }`}
-                          />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {(permissionsSuccess || permissionsError) && (
+                <div className="space-y-4">
+                  {(
+                    [
+                      {
+                        key: "email" as const,
+                        label: "Email Address",
+                        description:
+                          "Allow sharing your email address for communication",
+                      },
+                      {
+                        key: "name" as const,
+                        label: "Full Name",
+                        description:
+                          "Allow sharing your full name during verification",
+                      },
+                      {
+                        key: "birthdate" as const,
+                        label: "Date of Birth",
+                        description:
+                          "Allow sharing your birth date for age verification",
+                      },
+                      {
+                        key: "gender" as const,
+                        label: "Gender",
+                        description: "Allow sharing your gender information",
+                      },
+                      {
+                        key: "phoneNumber" as const,
+                        label: "Phone Number",
+                        description:
+                          "Allow sharing your phone number for contact",
+                      },
+                      {
+                        key: "picture" as const,
+                        label: "Profile Picture",
+                        description:
+                          "Allow sharing your profile picture for identification",
+                      },
+                    ] as const
+                  ).map((item) => (
                     <div
-                      className={`mt-4 p-3 rounded-lg ${
-                        permissionsSuccess
-                          ? "bg-green-50 border border-green-200"
-                          : "bg-red-50 border border-red-200"
-                      }`}
+                      key={item.key}
+                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
                     >
-                      <p
-                        className={`text-sm font-inter ${
-                          permissionsSuccess ? "text-green-700" : "text-red-700"
+                      <div className="flex items-center space-x-3">
+                        <FontAwesomeIcon
+                          icon={
+                            permissions[item.key] ? faToggleOn : faToggleOff
+                          }
+                          className={`w-6 h-6 ${
+                            permissions[item.key]
+                              ? "text-[#2C8E5D]"
+                              : "text-gray-400"
+                          }`}
+                        />
+                        <div>
+                          <h3 className="font-inter font-medium text-gray-900">
+                            {item.label}
+                          </h3>
+                          <p className="font-inter text-sm text-gray-500">
+                            {item.description}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handlePermissionToggle(item.key)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          permissions[item.key] ? "bg-[#2C8E5D]" : "bg-gray-200"
                         }`}
                       >
-                        {permissionsSuccess || permissionsError}
-                      </p>
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            permissions[item.key]
+                              ? "translate-x-6"
+                              : "translate-x-1"
+                          }`}
+                        />
+                      </button>
                     </div>
-                  )}
+                  ))}
+                </div>
 
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={handleSavePermissions}
-                      disabled={isLoadingPermissions}
-                      className="bg-[#2C8E5D] hover:bg-[#245A47] disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-inter font-medium flex items-center space-x-2"
+                {(permissionsSuccess || permissionsError) && (
+                  <div
+                    className={`mt-4 p-3 rounded-lg ${
+                      permissionsSuccess
+                        ? "bg-green-50 border border-green-200"
+                        : "bg-red-50 border border-red-200"
+                    }`}
+                  >
+                    <p
+                      className={`text-sm font-inter ${
+                        permissionsSuccess ? "text-green-700" : "text-red-700"
+                      }`}
                     >
-                      {isLoadingPermissions ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          <span>Saving...</span>
-                        </>
-                      ) : (
-                        <>
-                          <FontAwesomeIcon icon={faSave} className="w-4 h-4" />
-                          <span>Save</span>
-                        </>
-                      )}
-                    </button>
+                      {permissionsSuccess || permissionsError}
+                    </p>
                   </div>
+                )}
 
-                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start space-x-3">
-                      <FontAwesomeIcon
-                        icon={faShield}
-                        className="w-5 h-5 text-blue-600 mt-0.5"
-                      />
-                      <div>
-                        <h4 className="font-inter font-medium text-blue-900">
-                          Privacy Notice
-                        </h4>
-                        <p className="font-inter text-sm text-blue-700 mt-1">
-                          These permissions only apply when you choose to share
-                          your information during identity verification. Your
-                          data is never shared without your explicit consent.
-                        </p>
-                      </div>
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={handleSavePermissions}
+                    disabled={isLoadingPermissions}
+                    className="bg-[#2C8E5D] hover:bg-[#245A47] disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-inter font-medium flex items-center space-x-2"
+                  >
+                    {isLoadingPermissions ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FontAwesomeIcon icon={faSave} className="w-4 h-4" />
+                        <span>Save</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <FontAwesomeIcon
+                      icon={faShield}
+                      className="w-5 h-5 text-blue-600 mt-0.5"
+                    />
+                    <div>
+                      <h4 className="font-inter font-medium text-blue-900">
+                        Privacy Notice
+                      </h4>
+                      <p className="font-inter text-sm text-blue-700 mt-1">
+                        These permissions only apply when you choose to share
+                        your information during identity verification. Your data
+                        is never shared without your explicit consent.
+                      </p>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Sidebar */}
