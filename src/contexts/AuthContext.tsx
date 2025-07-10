@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Handle specific error cases
         if (response.status === 401) {
-          throw new Error('Unverified, invalid email/phone or password ');
+          throw new Error('Unverified, invalid email/phone or password \n Please check you email and verify');
         } else if (response.status === 404) {
           throw new Error('Account not found');
         } else if (response.status === 429) {

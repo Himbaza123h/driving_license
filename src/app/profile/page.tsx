@@ -50,6 +50,10 @@ const ProfilePage: React.FC = () => {
   const [permissionsError, setPermissionsError] = useState("");
   const [permissionsSuccess, setPermissionsSuccess] = useState("");
 
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState("");
+  const [updateSuccess, setUpdateSuccess] = useState("");
+
   React.useEffect(() => {
     if (user?.nationalId) {
       fetchPermissions();
@@ -153,11 +157,68 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleSave = () => {
-    // In a real app, this would update the user data via API
-    console.log("Saving profile data:", formData);
-    setIsEditing(false);
-    // Show success message here
+  const handleSave = async () => {
+    // Validate form data
+    if (!formData.name.trim()) {
+      setUpdateError("Name is required");
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      setUpdateError("Email is required");
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setUpdateError("Please enter a valid email address");
+      return;
+    }
+
+    if (!user?.id) {
+      setUpdateError("User ID not found");
+      return;
+    }
+
+    setIsUpdating(true);
+    setUpdateError("");
+    setUpdateSuccess("");
+
+    try {
+      const response = await fetch("/api/auth/update-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUpdateSuccess("Profile updated successfully!");
+        setIsEditing(false);
+
+        // Update the user context if you have a method to do so
+        // This depends on your AuthContext implementation
+        // You might need to refresh the user data or update the context
+
+        // Clear success message after 3 seconds
+        setTimeout(() => setUpdateSuccess(""), 3000);
+      } else {
+        setUpdateError(data.error || "Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      setUpdateError("Network error. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleCancel = () => {
@@ -209,6 +270,23 @@ const ProfilePage: React.FC = () => {
                   <h2 className="text-xl font-inter font-semibold text-gray-900">
                     Personal Information
                   </h2>
+                  {(updateError || updateSuccess) && (
+                    <div
+                      className={`mb-4 p-3 rounded-lg ${
+                        updateSuccess
+                          ? "bg-green-50 border border-green-200"
+                          : "bg-red-50 border border-red-200"
+                      }`}
+                    >
+                      <p
+                        className={`text-sm font-inter ${
+                          updateSuccess ? "text-green-700" : "text-red-700"
+                        }`}
+                      >
+                        {updateSuccess || updateError}
+                      </p>
+                    </div>
+                  )}
                   {!isEditing ? (
                     <button
                       onClick={() => setIsEditing(true)}
@@ -221,10 +299,23 @@ const ProfilePage: React.FC = () => {
                     <div className="flex space-x-2">
                       <button
                         onClick={handleSave}
-                        className="flex items-center space-x-2 bg-[#2C8E5D] hover:bg-[#245A47] text-white px-4 py-2 rounded-lg font-inter font-medium"
+                        disabled={isUpdating}
+                        className="flex items-center space-x-2 bg-[#2C8E5D] hover:bg-[#245A47] disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-inter font-medium"
                       >
-                        <FontAwesomeIcon icon={faSave} className="w-4 h-4" />
-                        <span>Save</span>
+                        {isUpdating ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Saving...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FontAwesomeIcon
+                              icon={faSave}
+                              className="w-4 h-4"
+                            />
+                            <span>Save</span>
+                          </>
+                        )}
                       </button>
                       <button
                         onClick={handleCancel}

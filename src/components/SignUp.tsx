@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useRouter } from 'next/navigation';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faEye,
@@ -15,6 +16,9 @@ interface SignUpProps {
 }
 
 const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
+
+  const router = useRouter();
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -267,6 +271,9 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
         confirmPassword: "",
       });
       setAcceptTerms(false);
+      setTimeout(() => {
+    router.push('/dashboard');
+  }, 2000);
     } catch (error: unknown) {
       console.log("Signup error in component:", error); // Debug log
 
