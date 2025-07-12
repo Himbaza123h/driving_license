@@ -58,7 +58,7 @@ export default function PersonalInfoPage() {
         placeOfBirth: "",
         gender: "",
         nationality: "Burundian",
-        nationalId: "",
+        nationalId: user?.nationalId || "",
         phoneNumber: "",
         email: user?.email || "",
         address: {
@@ -76,7 +76,6 @@ export default function PersonalInfoPage() {
     );
   });
 
-
   const [errors, setErrors] = useState<{ [key: string]: string }>({}); // Initialize data from context and URL params
   useEffect(() => {
     setCurrentStep(2);
@@ -85,13 +84,14 @@ export default function PersonalInfoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Handle license type from URL params
-useEffect(() => {
-  const licenseType = searchParams?.get("type") || getFromSessionStorage('licenseType');
-  if (licenseType && licenseType !== applicationData.licenseType) {
-    updateLicenseType(licenseType);
-    saveToSessionStorage('licenseType', licenseType);
-  }
-}, [searchParams, applicationData.licenseType, updateLicenseType]);
+  useEffect(() => {
+    const licenseType =
+      searchParams?.get("type") || getFromSessionStorage("licenseType");
+    if (licenseType && licenseType !== applicationData.licenseType) {
+      updateLicenseType(licenseType);
+      saveToSessionStorage("licenseType", licenseType);
+    }
+  }, [searchParams, applicationData.licenseType, updateLicenseType]);
 
   // Load saved personal info data
   useEffect(() => {
@@ -142,42 +142,42 @@ useEffect(() => {
   ];
 
   const handleInputChange = (field: string, value: string) => {
-  let newFormData;
-  
-  if (field.includes(".")) {
-    const [parent, child] = field.split(".");
-    newFormData = {
-      ...formData,
-      [parent]: {
-        ...((formData[parent as keyof PersonalInfo] as object) || {}),
-        [child]: value,
-      },
-    };
-  } else {
-    newFormData = {
-      ...formData,
-      [field]: value,
-    };
-  }
-  
-  setFormData(newFormData);
-  
-  // Save to session storage
-  saveToSessionStorage('personalInfo', newFormData);
-  
-  // Save license type to session storage
-  if (applicationData.licenseType) {
-    saveToSessionStorage('licenseType', applicationData.licenseType);
-  }
+    let newFormData;
 
-  // Clear error when user starts typing
-  if (errors[field]) {
-    setErrors((prev) => ({
-      ...prev,
-      [field]: "",
-    }));
-  }
-};
+    if (field.includes(".")) {
+      const [parent, child] = field.split(".");
+      newFormData = {
+        ...formData,
+        [parent]: {
+          ...((formData[parent as keyof PersonalInfo] as object) || {}),
+          [child]: value,
+        },
+      };
+    } else {
+      newFormData = {
+        ...formData,
+        [field]: value,
+      };
+    }
+
+    setFormData(newFormData);
+
+    // Save to session storage
+    saveToSessionStorage("personalInfo", newFormData);
+
+    // Save license type to session storage
+    if (applicationData.licenseType) {
+      saveToSessionStorage("licenseType", applicationData.licenseType);
+    }
+
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: "",
+      }));
+    }
+  };
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
@@ -282,7 +282,7 @@ useEffect(() => {
         body: JSON.stringify({
           licenseType: applicationData.licenseType,
           personalInfo: formData,
-          nationalId: formData.nationalId,
+          nationalId: user?.nationalId,
         }),
       });
 
@@ -295,8 +295,8 @@ useEffect(() => {
       // Update context with saved data
       updatePersonalInfo(formData);
 
-      saveToSessionStorage('personalInfo', formData);
-      saveToSessionStorage('licenseType', applicationData.licenseType);
+      saveToSessionStorage("personalInfo", formData);
+      saveToSessionStorage("licenseType", applicationData.licenseType);
 
       // Navigate to next step
       router.push("/apply/documents");
@@ -492,7 +492,6 @@ useEffect(() => {
                     </p>
                   )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     National ID Number *
@@ -503,11 +502,19 @@ useEffect(() => {
                     onChange={(e) =>
                       handleInputChange("nationalId", e.target.value)
                     }
+                    readOnly={!!user?.nationalId} // Add this line
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
                       errors.nationalId ? "border-red-300" : "border-gray-300"
-                    }`}
+                    } ${
+                      !!user?.nationalId ? "bg-gray-100 cursor-not-allowed" : ""
+                    }`} // Add gray background when readonly
                     placeholder="1234 5678 9012 3456"
                   />
+                  {user?.nationalId && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      National ID loaded from your account
+                    </p>
+                  )}
                   {errors.nationalId && (
                     <p className="mt-1 text-sm text-red-600">
                       {errors.nationalId}

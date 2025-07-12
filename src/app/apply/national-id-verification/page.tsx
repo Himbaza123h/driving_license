@@ -184,13 +184,13 @@ export default function NationalIdVerificationPage() {
                     <div className="flex justify-between">
                       <span className="text-green-700">Name:</span>
                       <span className="text-green-900 font-medium">
-                        {verifiedData.fullName}
+                        {user?.name}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-green-700">National ID:</span>
                       <span className="text-green-900 font-medium">
-                        {verifiedData.nationalId}
+                        {user?.nationalId}
                       </span>
                     </div>
                     <div className="flex justify-between">

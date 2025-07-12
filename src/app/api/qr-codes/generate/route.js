@@ -79,14 +79,47 @@ export async function POST(request) {
     
     console.log('🔍 Generating QR code for application:', applicationId);
     
-    // First, fetch the existing application to get all data
-    // const { data: existingApplication, error: fetchError } = await supabaseAdmin
-    //   .from('license_applications')
-    //   .select('*')
-    //   .eq('id', applicationId)
-    //   .single();
-
-
+    // First, check if QR code already exists for this application
+    const { data: existingQRCode, error: qrFetchError } = await supabaseAdmin
+      .from('qr_codes')
+      .select('*')
+      .eq('application_id', applicationId)
+      .maybeSingle();
+    
+    if (qrFetchError) {
+      console.error('❌ Error checking existing QR code:', qrFetchError);
+    }
+    
+    // If QR code already exists, return it
+    if (existingQRCode) {
+      console.log('✅ Found existing QR code for application:', applicationId);
+      
+      // Parse the QR code data
+      const qrData = typeof existingQRCode.qr_code_data === 'string' 
+        ? JSON.parse(existingQRCode.qr_code_data) 
+        : existingQRCode.qr_code_data;
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          license_number: existingQRCode.license_number,
+          qr_code_image: existingQRCode.qr_code_image,
+          issue_date: qrData.issued_date || existingQRCode.created_at,
+          expiry_date: qrData.expiry_date,
+          created_at: existingQRCode.created_at,
+          qr_data: {
+            holderName: qrData.holder_name,
+            nationalId: qrData.national_id,
+            licenseType: qrData.license_type,
+            issueDate: qrData.issued_date || existingQRCode.created_at,
+            expiryDate: qrData.expiry_date
+          }
+        },
+        message: 'Existing QR code retrieved successfully'
+      });
+    }
+    
+    // Fetch the existing application to get all data
     const { data: existingApplication, error: fetchError } = await supabaseAdmin
       .from('license_applications')
       .select('*')
@@ -156,16 +189,44 @@ export async function POST(request) {
       }, { status: 500 });
     }
     
-
+    // Save QR code to qr_codes table
+    const { data: savedQRCode, error: saveError } = await supabaseAdmin
+      .from('qr_codes')
+      .insert({
+        application_id: existingApplication.id,
+        license_number: licenseNumber,
+        qr_code_data: qrCodeData,
+        qr_code_image: qrCodeImage,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
     
-    // if (updateError) {
-    //   console.error('❌ Error updating application with QR data:', updateError);
-    //   return NextResponse.json({
-    //     error: 'Failed to update application with QR code',
-    //     success: false,
-    //     details: updateError.message || updateError
-    //   }, { status: 500 });
-    // }
+    if (saveError) {
+      console.error('❌ Error saving QR code to database:', saveError);
+      return NextResponse.json({
+        error: 'Failed to save QR code to database',
+        success: false,
+        details: saveError.message || saveError
+      }, { status: 500 });
+    }
+    
+    // Update the application with license number if it didn't have one
+    if (!existingApplication.license_number) {
+      const { error: updateError } = await supabaseAdmin
+        .from('license_applications')
+        .update({
+          license_number: licenseNumber,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingApplication.id);
+      
+      if (updateError) {
+        console.error('❌ Error updating application with license number:', updateError);
+        // Don't return error here as QR code was saved successfully
+      }
+    }
     
     console.log('✅ QR code generated and saved successfully');
     
@@ -248,14 +309,14 @@ export async function PUT(request) {
       .select()
       .single();
     
-    // if (updateError) {
-    //   console.error('❌ Error updating application:', updateError);
-    //   return NextResponse.json({
-    //     error: 'Failed to update application',
-    //     success: false,
-    //     details: updateError
-    //   }, { status: 500 });
-    // }
+    if (updateError) {
+      console.error('❌ Error updating application:', updateError);
+      return NextResponse.json({
+        error: 'Failed to update application',
+        success: false,
+        details: updateError
+      }, { status: 500 });
+    }
     
     console.log('✅ Application updated successfully');
     
