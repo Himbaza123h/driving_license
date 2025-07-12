@@ -63,10 +63,10 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
         isValid: false,
         message: "National ID must contain only numbers",
       };
-    if (nationalId.length < 13)
+    if (nationalId.length < 16)
       return {
         isValid: false,
-        message: "National ID must be at least 13 digits",
+        message: "National ID must be at least 16 digits",
       };
     if (nationalId.length > 16)
       return { isValid: false, message: "National ID cannot exceed 16 digits" };
@@ -447,7 +447,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
                     : "border-red-500"
                   : "border-gray-300"
               }`}
-              placeholder="Enter your National ID (13-16 digits)"
+              placeholder="Enter your National ID (16 digits)"
               disabled={isLoading}
               required
             />
