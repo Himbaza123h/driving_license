@@ -598,7 +598,7 @@ const handleOtpSubmit = async (e: { preventDefault: () => void }) => {
             <p className="mt-1 text-xs text-gray-500">
               {user?.nationalId
                 ? "Your registered National ID (read-only)"
-                : "Format: 13 digits (e.g., 1198700123456)"}
+                : "Format: 16 digits (e.g., 1198700123456789)"}
             </p>
           </div>
 
