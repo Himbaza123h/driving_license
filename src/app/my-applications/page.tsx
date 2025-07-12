@@ -31,7 +31,7 @@ interface ApiResponse {
   error?: string;
 }
 
-type LicenseType = 'category_a' | 'category_b' | 'category_c' | 'category_d';
+type LicenseType = 'car' | 'motorcycle' | 'commercial' | 'category_a' | 'category_b' | 'category_c' | 'category_d';
 type ApplicationStatus = 'approved' | 'rejected' | 'pending' | 'submitted' | 'under_review';
 
 const MyApplicationsPage: React.FC = () => {
@@ -54,7 +54,16 @@ const MyApplicationsPage: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch(`/api/applications?citizenId=${user.nationalId}`);
+      const response = await fetch('/api/applications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          citizenId: user.nationalId
+        })
+      });
+
       const data: ApiResponse = await response.json();
 
       if (data.success) {
@@ -115,7 +124,13 @@ const MyApplicationsPage: React.FC = () => {
   };
 
   const getLicenseTypeLabel = (type: string): string => {
-    switch (type as LicenseType) {
+    switch (type) {
+      case 'car':
+        return 'Private Car License (Class B)';
+      case 'motorcycle':
+        return 'Motorcycle License (Class A)';
+      case 'commercial':
+        return 'Commercial License (Class C)';
       case 'category_a':
         return 'Category A (Motorcycles)';
       case 'category_b':

@@ -1,234 +1,153 @@
-import { supabaseAdmin } from "../../../../../backend/config/database";
+import { supabaseAdmin } from "../../../../../../backend/config/database";
 import { NextResponse } from 'next/server';
-
-export async function POST(request) {
-  try {
-    const { qrData } = await request.json();
-
-    if (!qrData) {
-      return NextResponse.json(
-        { error: 'QR data is required' },
-        { status: 400 }
-      );
-    }
-
-    let parsedData;
-    try {
-      // Parse QR data if it's a string
-      parsedData = typeof qrData === 'string' ? JSON.parse(qrData) : qrData;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (parseError) {
-      return NextResponse.json(
-        { 
-          valid: false,
-          status: 'invalid',
-          message: 'Invalid QR code format'
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate required fields
-    if (!parsedData.licenseNumber || !parsedData.applicationId) {
-      return NextResponse.json(
-        { 
-          valid: false,
-          status: 'invalid',
-          message: 'Invalid QR code data'
-        },
-        { status: 400 }
-      );
-    }
-
-    // Fetch QR code from database
-    const { data: qrCode, error: qrError } = await supabaseAdmin
-      .from('qr_codes')
-      .select(`
-        *,
-        license_applications (
-          id,
-          status,
-          personal_info,
-          license_type
-        )
-      `)
-      .eq('license_number', parsedData.licenseNumber)
-      .eq('application_id', parsedData.applicationId)
-      .single();
-
-    if (qrError || !qrCode) {
-      return NextResponse.json({
-        valid: false,
-        status: 'invalid',
-        message: 'License not found in database'
-      });
-    }
-
-    // Check if license is expired
-    const now = new Date();
-    const expiryDate = new Date(qrCode.expiry_date);
-    
-    if (now > expiryDate) {
-      // Update status to expired if not already
-      if (qrCode.status !== 'expired') {
-        await supabaseAdmin
-          .from('qr_codes')
-          .update({ status: 'expired' })
-          .eq('id', qrCode.id);
-      }
-
-      return NextResponse.json({
-        valid: false,
-        status: 'expired',
-        message: 'License has expired',
-        data: {
-          licenseNumber: qrCode.license_number,
-          holderName: parsedData.holderName,
-          licenseType: qrCode.license_applications?.license_type,
-          issueDate: qrCode.issue_date,
-          expiryDate: qrCode.expiry_date
-        }
-      });
-    }
-
-    // Check current status
-    if (qrCode.status === 'invalid') {
-      return NextResponse.json({
-        valid: false,
-        status: 'invalid',
-        message: 'License has been invalidated',
-        data: {
-          licenseNumber: qrCode.license_number,
-          holderName: parsedData.holderName,
-          licenseType: qrCode.license_applications?.license_type,
-          issueDate: qrCode.issue_date,
-          expiryDate: qrCode.expiry_date
-        }
-      });
-    }
-
-    // License is valid
-    return NextResponse.json({
-      valid: true,
-      status: 'valid',
-      message: 'Valid license',
-      data: {
-        licenseNumber: qrCode.license_number,
-        holderName: parsedData.holderName,
-        licenseType: qrCode.license_applications?.license_type,
-        nationalId: parsedData.nationalId,
-        issueDate: qrCode.issue_date,
-        expiryDate: qrCode.expiry_date,
-        applicationStatus: qrCode.license_applications?.status
-      }
-    });
-
-  } catch (error) {
-    console.error('Error verifying QR code:', error);
-    return NextResponse.json(
-      { 
-        valid: false,
-        status: 'invalid',
-        message: 'Error verifying license'
-      },
-      { status: 500 }
-    );
-  }
-}
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const licenseNumber = searchParams.get('licenseNumber');
-
+    const licenseNumber = searchParams.get('license');
+    
     if (!licenseNumber) {
-      return NextResponse.json(
-        { error: 'License number is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        error: 'License number is required',
+        success: false
+      }, { status: 400 });
     }
-
-    // Fetch QR code by license number
-    const { data: qrCode, error: qrError } = await supabaseAdmin
+    
+    console.log('🔍 Verifying license:', licenseNumber);
+    
+    // Find the QR code record
+    const { data: qrCodeRecord, error: qrError } = await supabaseAdmin
       .from('qr_codes')
-      .select(`
-        *,
-        license_applications (
-          id,
-          status,
-          personal_info,
-          license_type
-        )
-      `)
+      .select('*')
       .eq('license_number', licenseNumber)
       .single();
-
-    if (qrError || !qrCode) {
-      return NextResponse.json({
-        valid: false,
-        status: 'invalid',
-        message: 'License not found'
-      });
-    }
-
-    // Check if license is expired
-    const now = new Date();
-    const expiryDate = new Date(qrCode.expiry_date);
     
-    if (now > expiryDate) {
+    if (qrError || !qrCodeRecord) {
+      console.error('❌ QR code not found:', licenseNumber);
       return NextResponse.json({
-        valid: false,
-        status: 'expired',
-        message: 'License has expired',
-        data: {
-          licenseNumber: qrCode.license_number,
-          licenseType: qrCode.license_applications?.license_type,
-          issueDate: qrCode.issue_date,
-          expiryDate: qrCode.expiry_date
-        }
-      });
+        error: 'License not found',
+        success: false,
+        valid: false
+      }, { status: 404 });
     }
-
-    // Check current status
-    if (qrCode.status === 'invalid') {
+    
+    // Get the associated application
+    const { data: applicationRecord, error: appError } = await supabaseAdmin
+      .from('license_applications')
+      .select('*')
+      .eq('id', qrCodeRecord.application_id)
+      .single();
+    
+    if (appError || !applicationRecord) {
+      console.error('❌ Application not found for QR code:', licenseNumber);
       return NextResponse.json({
-        valid: false,
-        status: 'invalid',
-        message: 'License has been invalidated'
-      });
+        error: 'Application not found',
+        success: false,
+        valid: false
+      }, { status: 404 });
     }
-
-    // Parse QR data for holder name
-    let holderName = 'Unknown';
-    try {
-      const qrData = JSON.parse(qrCode.qr_code_data);
-      holderName = qrData.holderName || 'Unknown';
-    } catch (e) {
-      console.error('Error parsing QR data:', e);
-    }
-
-    return NextResponse.json({
-      valid: true,
-      status: 'valid',
-      message: 'Valid license',
-      data: {
-        licenseNumber: qrCode.license_number,
-        holderName,
-        licenseType: qrCode.license_applications?.license_type,
-        issueDate: qrCode.issue_date,
-        expiryDate: qrCode.expiry_date
-      }
+    
+    // Parse QR code data
+    const qrData = typeof qrCodeRecord.qr_code_data === 'string' 
+      ? JSON.parse(qrCodeRecord.qr_code_data) 
+      : qrCodeRecord.qr_code_data;
+    
+    // Check if license is expired
+    const currentDate = new Date();
+    const expiryDate = new Date(qrData.expiry_date);
+    const isExpired = currentDate > expiryDate;
+    
+    // Check if license is valid (not expired and application is approved)
+    const isValid = !isExpired && (applicationRecord.status === 'approved' || applicationRecord.status === 'completed');
+    
+    console.log('✅ License verification completed:', {
+      licenseNumber,
+      isValid,
+      isExpired,
+      status: applicationRecord.status
     });
-
-  } catch (error) {
-    console.error('Error fetching license:', error);
-    return NextResponse.json(
-      { 
-        valid: false,
-        status: 'invalid',
-        message: 'Error fetching license'
+    
+    return NextResponse.json({
+      success: true,
+      valid: isValid,
+      expired: isExpired,
+      license: {
+        license_number: qrCodeRecord.license_number,
+        holder_name: qrData.holder_name,
+        national_id: qrData.national_id,
+        license_type: qrData.license_type,
+        issue_date: qrData.issued_date,
+        expiry_date: qrData.expiry_date,
+        status: applicationRecord.status,
+        created_at: qrCodeRecord.created_at
       },
-      { status: 500 }
-    );
+      message: isValid ? 'License is valid' : (isExpired ? 'License has expired' : 'License is not valid')
+    });
+    
+  } catch (error) {
+    console.error('❌ Fatal error verifying license:', error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      success: false,
+      valid: false,
+      details: error.message
+    }, { status: 500 });
+  }
+}
+
+// POST method for verifying with QR code content
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { qrContent } = body;
+    
+    if (!qrContent) {
+      return NextResponse.json({
+        error: 'QR code content is required',
+        success: false
+      }, { status: 400 });
+    }
+    
+    console.log('🔍 Verifying QR code content');
+    
+    // Parse QR code content
+    let qrData;
+    try {
+      qrData = typeof qrContent === 'string' ? JSON.parse(qrContent) : qrContent;
+    } catch (parseError) {
+      console.error('❌ Invalid QR code format:', parseError);
+      return NextResponse.json({
+        error: 'Invalid QR code format',
+        success: false,
+        valid: false
+      }, { status: 400 });
+    }
+    
+    const { licenseNumber } = qrData;
+    
+    if (!licenseNumber) {
+      return NextResponse.json({
+        error: 'License number not found in QR code',
+        success: false,
+        valid: false
+      }, { status: 400 });
+    }
+    
+    // Use the GET logic to verify the license
+    // const { searchParams } = new URL(request.url);
+    const verifyUrl = new URL(request.url);
+    verifyUrl.searchParams.set('license', licenseNumber);
+    
+    // Call the GET method logic
+    return await this.GET({ url: verifyUrl.toString() });
+    
+  } catch (error) {
+    console.error('❌ Fatal error verifying QR code:', error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      success: false,
+      valid: false,
+      details: error.message
+    }, { status: 500 });
   }
 }

@@ -44,7 +44,7 @@ const DashboardPage: React.FC = () => {
       description: "Verify an existing driving license",
       icon: faClipboardCheck,
       color: "bg-green-500",
-      href: "/verify",
+      href: "/my-applications",
     },
     {
       title: "My Applications",

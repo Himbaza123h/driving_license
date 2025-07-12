@@ -1,76 +1,77 @@
-import { supabaseAdmin } from "../../../../backend/config/database"
-import { NextResponse } from 'next/server'
+import { supabaseAdmin } from "../../../../backend/config/database";
+import { NextResponse } from 'next/server';
 
-export async function GET(request) {
+export async function POST(request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const citizenId = searchParams.get('citizenId')
+    const body = await request.json();
+    const { citizenId } = body;
 
-    // Validate required parameters
     if (!citizenId) {
       return NextResponse.json(
-        { success: false, error: 'Missing required parameter: citizenId' },
+        { 
+          success: false, 
+          error: 'Citizen ID is required' 
+        }, 
         { status: 400 }
-      )
+      );
     }
 
-    // Get all applications for the citizen
-    const { data, error } = await supabaseAdmin
+    // Fetch applications from the database by searching in personal_info JSON column
+    const { data: applications, error } = await supabaseAdmin
       .from('license_applications')
       .select(`
         id,
+        citizen_id,
         license_type,
         status,
-        personal_info,
-        documents,
-        emergency_contact,
         review_notes,
         submitted_at,
         approved_at,
         rejected_at,
         created_at,
         updated_at,
-        photos
+        personal_info
       `)
-      .eq('citizen_id', citizenId)
-      .order('created_at', { ascending: false })
+      .eq('personal_info->>nationalId', citizenId)
+      .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching applications:', error)
+      console.error('Database error:', error);
       return NextResponse.json(
-        { success: false, error: 'Failed to fetch applications' },
+        { 
+          success: false, 
+          error: 'Failed to fetch applications from database' 
+        }, 
         { status: 500 }
-      )
+      );
     }
 
-    // Format the applications data
-    const formattedApplications = data.map(app => ({
+    // Transform the data to match the expected format
+    const transformedApplications = applications.map(app => ({
       id: app.id,
       licenseType: app.license_type,
       status: app.status,
-      personalInfo: app.personal_info,
-      documents: app.documents,
-      emergencyContact: app.emergency_contact,
-      reviewNotes: app.review_notes,
       submittedAt: app.submitted_at,
       approvedAt: app.approved_at,
       rejectedAt: app.rejected_at,
+      reviewNotes: app.review_notes,
       createdAt: app.created_at,
-      updatedAt: app.updated_at,
-      photos: app.photos
-    }))
+      updatedAt: app.updated_at
+    }));
 
     return NextResponse.json({
       success: true,
-      data: formattedApplications,
-      count: formattedApplications.length
-    })
+      data: transformedApplications
+    });
 
   } catch (error) {
-    console.error('Error in get applications API:', error)
+    console.error('API error:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { 
+        success: false, 
+        error: 'Internal server error' 
+      }, 
       { status: 500 }
-    )
+    );
   }
 }
