@@ -30,7 +30,7 @@ export default function ReviewPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [qrCodeData, setQrCodeData] = useState(null);
+  // const [setQrCodeData] = useState(null);
   const [submitError, setSubmitError] = useState("");
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
 
@@ -334,7 +334,7 @@ export default function ReviewPage() {
       }
 
       // 7. Update state with successful submission
-      setQrCodeData(qrResult.data);
+      // setQrCodeData(qrResult.data);
       setIsSubmitted(true);
 
       // 8. Store the successful submission data

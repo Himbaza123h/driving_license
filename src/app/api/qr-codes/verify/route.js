@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "../../../../../../backend/config/database";
+import { supabaseAdmin } from "../../../../../backend/config/database";
 import { NextResponse } from 'next/server';
 
 export async function GET(request) {
