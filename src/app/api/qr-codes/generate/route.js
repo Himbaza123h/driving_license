@@ -190,7 +190,7 @@ export async function POST(request) {
     }
     
     // Save QR code to qr_codes table
-    const { data: savedQRCode, error: saveError } = await supabaseAdmin
+    const { error: saveError } = await supabaseAdmin
       .from('qr_codes')
       .insert({
         application_id: existingApplication.id,
