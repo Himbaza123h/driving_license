@@ -32,11 +32,11 @@ export async function POST(request) {
     // Check if both email and national ID match
     if (email && nationalId) {
       const { data: citizenByBoth, error: bothError } = await supabaseAdmin
-        .from("citizens")
+        .from("users")
         .select("*")
         .eq("national_id", nationalId)
         .eq("email", email)
-        .eq('status', 'ACTIVE')
+        
         .single();
 
       if (!bothError && citizenByBoth) {
@@ -46,10 +46,10 @@ export async function POST(request) {
       } else {
         // Try matching by email only
         const { data: citizenByEmail, error: emailError } = await supabaseAdmin
-          .from("citizens")
+          .from("users")
           .select("*")
           .eq("email", email)
-          .eq('status', 'ACTIVE')
+          
           .single();
 
         if (!emailError && citizenByEmail) {
@@ -59,10 +59,9 @@ export async function POST(request) {
         } else {
           // Try matching by national ID only
           const { data: citizenByNationalId, error: nationalIdError } = await supabaseAdmin
-            .from("citizens")
+            .from("users")
             .select("*")
             .eq("national_id", nationalId)
-            .eq('status', 'ACTIVE')
             .single();
 
           if (!nationalIdError && citizenByNationalId) {
@@ -78,10 +77,9 @@ export async function POST(request) {
     } else if (email) {
       // Only check by email
       const { data: citizenByEmail, error: emailError } = await supabaseAdmin
-        .from("citizens")
+        .from("users")
         .select("*")
         .eq("email", email)
-        .eq('status', 'ACTIVE')
         .single();
 
       citizen = citizenByEmail;
@@ -89,10 +87,9 @@ export async function POST(request) {
     } else {
       // Only check by national ID
       const { data: citizenByNationalId, error: nationalIdError } = await supabaseAdmin
-        .from("citizens")
+        .from("users")
         .select("*")
-        .eq("national_id", nationalId)
-        .eq('status', 'ACTIVE')
+        .eq("national_id", nationalId)  
         .single();
 
       citizen = citizenByNationalId;
@@ -107,10 +104,9 @@ export async function POST(request) {
       console.log('Truncated to 13 digits:', truncatedNationalId);
 
       const { data: truncatedCitizen, error: truncatedError } = await supabaseAdmin
-        .from("citizens")
+        .from("users")
         .select("*")
         .eq("national_id", truncatedNationalId)
-        .eq('status', 'ACTIVE')
         .single();
 
       if (!truncatedError && truncatedCitizen) {

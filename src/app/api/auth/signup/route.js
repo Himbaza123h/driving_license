@@ -53,15 +53,9 @@ export async function POST(request) {
     }
 
     // Process National ID
-    const limitNationalId = (nationalId) => {
-      if (!nationalId) return nationalId;
-      // Remove all non-digit characters
-      const digitsOnly = nationalId.replace(/\D/g, "");
-      // Return first 13 digits only
-      return digitsOnly.substring(0, 13);
-    };
+    const limitNationalId = nationalId;
 
-    const processedNationalId = limitNationalId(nationalId);
+    const processedNationalId = limitNationalId;
     console.log("🔢 National ID processing:", { original: nationalId, processed: processedNationalId });
 
     // Check if user already exists in our users table by email
