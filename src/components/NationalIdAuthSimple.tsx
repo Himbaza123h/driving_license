@@ -98,7 +98,7 @@ export default function NationalIdAuth({
   // Debug when button disabled state might change
   // Update the existing debug useEffect
   useEffect(() => {
-    const isValidLength = nationalId.length === 13;
+    const isValidLength = nationalId.length === 16;
     const buttonDisabled =
       !nationalId || !isValidLength || loading || isLoading;
     console.log("🔴 Button disabled state check:", {
@@ -106,7 +106,7 @@ export default function NationalIdAuth({
       nationalIdLength: nationalId.length,
       hasNationalId: !!nationalId,
       isValidLength: isValidLength,
-      is13Digits: nationalId.length === 13,
+      is16Digits: nationalId.length === 16,
       userProfileNationalId: user?.nationalId,
       loading: loading,
       isLoading: isLoading,
@@ -162,7 +162,7 @@ export default function NationalIdAuth({
     const cleanId = id.trim().replace(/\s+/g, "");
     console.log("Validating National ID:", cleanId, "Length:", cleanId.length);
 
-    // Accept any non-empty string (remove 13-digit requirement)
+    // Accept any non-empty string (remove 16-digit requirement)
     const isValid = cleanId.length > 0;
     console.log("Validation result:", isValid);
     return isValid;
@@ -196,7 +196,7 @@ export default function NationalIdAuth({
     console.log("Submitting National ID:", cleanNationalId);
 
     if (!validateNationalId(cleanNationalId)) {
-      setError("Please enter a valid 13-digit National ID number");
+      setError("Please enter a valid 16-digit National ID number");
       return;
     }
 
@@ -580,11 +580,11 @@ const handleOtpSubmit = async (e: { preventDefault: () => void }) => {
                   // Don't allow changes if user has nationalId
                   if (!user?.nationalId) {
                     setNationalId(
-                      e.target.value.replace(/\D/g, "").slice(0, 13)
+                      e.target.value.replace(/\D/g, "").slice(0, 16)
                     );
                   }
                 }}
-                placeholder="Enter 13-digit National ID"
+                placeholder="Enter 16-digit National ID"
                 className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 ${
                   user?.nationalId
                     ? "bg-gray-50 border-gray-200 cursor-not-allowed"
@@ -880,7 +880,7 @@ const handleOtpSubmit = async (e: { preventDefault: () => void }) => {
         <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-blue-800 text-xs text-center">
             <strong>Development Mode:</strong> Using Supabase directly. Use any
-            13-digit National ID from the database and any 6-digit OTP for
+            16-digit National ID from the database and any 6-digit OTP for
             testing.
           </p>
         </div>
