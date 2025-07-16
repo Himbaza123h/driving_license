@@ -22,6 +22,8 @@ import {
   faQrcode,
   faExpand,
   faTimes,
+  faCheck,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -150,6 +152,13 @@ const ApplicationDetailsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [showQRModal, setShowQRModal] = useState<boolean>(false);
+  const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
+  const [reviewAction, setReviewAction] = useState<"approve" | "reject" | null>(null);
+  const [reviewNotes, setReviewNotes] = useState<string>("");
+  const [processingAction, setProcessingAction] = useState<boolean>(false);
+
+  const isAdmin = user?.roles === "admin";
+  const isUser = user?.roles === "user";
 
   useEffect(() => {
     if (applicationId && user?.nationalId) {
@@ -188,6 +197,60 @@ const ApplicationDetailsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApproveReject = async (): Promise<void> => {
+    if (!application || !reviewAction) return;
+
+    setProcessingAction(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/admin/applications/approve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          applicationId: application.id,
+          action: reviewAction === "approve" ? "APPROVED" : "REJECTED",
+          reviewNotes: reviewNotes.trim() || undefined,
+          adminId: user?.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update the application state with the new data
+        setApplication(prev => prev ? { ...prev, ...data.data } : null);
+        setShowReviewModal(false);
+        setReviewAction(null);
+        setReviewNotes("");
+        
+        // Show success message
+        // You might want to add a toast notification here
+      } else {
+        setError(data.error || `Failed to ${reviewAction} application`);
+      }
+    } catch (err) {
+      console.error(`Error ${reviewAction}ing application:`, err);
+      setError(`Network error. Failed to ${reviewAction} application.`);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const openReviewModal = (action: "approve" | "reject") => {
+    setReviewAction(action);
+    setReviewNotes("");
+    setShowReviewModal(true);
+  };
+
+  const closeReviewModal = () => {
+    setShowReviewModal(false);
+    setReviewAction(null);
+    setReviewNotes("");
   };
 
   const getStatusColor = (status: string): string => {
@@ -282,6 +345,27 @@ const ApplicationDetailsPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  // Check if QR code should be visible
+  const shouldShowQRCode = () => {
+    if (!application?.qrCode) return false;
+    
+    // Admin can always see QR code
+    if (isAdmin) return true;
+    
+    // User can only see QR code if application is approved
+    if (isUser && application.status?.toLowerCase() === "approved") return true;
+    
+    return false;
+  };
+
+  // Check if admin actions should be visible
+  const shouldShowAdminActions = () => {
+    if (!isAdmin || !application) return false;
+    
+    const status = application.status?.toLowerCase();
+    return status !== "approved" && status !== "rejected";
+  };
+
   // Show loading while checking authentication
   if (isLoading) {
     return (
@@ -319,7 +403,7 @@ const ApplicationDetailsPage: React.FC = () => {
                   Application Details
                 </h1>
                 <p className="text-gray-600 font-inter mt-2">
-                  View detailed information about your license application
+                  View detailed information about {isAdmin ? "the" : "your"} license application
                 </p>
               </div>
             </div>
@@ -380,6 +464,30 @@ const ApplicationDetailsPage: React.FC = () => {
                       />
                       {application.status?.replace("_", " ").toUpperCase()}
                     </span>
+                    
+                    {/* Admin Actions */}
+                    {shouldShowAdminActions() && (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => openReviewModal("approve")}
+                          disabled={processingAction}
+                          className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-inter font-medium"
+                        >
+                          <FontAwesomeIcon icon={faCheck} className="w-4 h-4" />
+                          <span>Approve</span>
+                        </button>
+                        <button
+                          onClick={() => openReviewModal("reject")}
+                          disabled={processingAction}
+                          className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-inter font-medium"
+                        >
+                          <FontAwesomeIcon icon={faTimes} className="w-4 h-4" />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Download License Button */}
                     {application.status === "approved" && (
                       <button
                         onClick={() => handleDownload(application.id)}
@@ -440,8 +548,8 @@ const ApplicationDetailsPage: React.FC = () => {
                 )}
               </div>
 
-              {/* QR Code Section */}
-              {application.qrCode && (
+              {/* QR Code Section - Only show if conditions are met */}
+              {shouldShowQRCode() && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-inter font-semibold text-gray-900 mb-4 flex items-center">
                     <FontAwesomeIcon
@@ -449,6 +557,11 @@ const ApplicationDetailsPage: React.FC = () => {
                       className="w-5 h-5 mr-2 text-[#2C8E5D]"
                     />
                     Digital License QR Code
+                    {isAdmin && application.status?.toLowerCase() !== "approved" && (
+                      <span className="ml-2 text-sm text-orange-600 font-normal">
+                        (Admin Preview)
+                      </span>
+                    )}
                   </h3>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -702,8 +815,7 @@ const ApplicationDetailsPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Emergency Contact */}
+                            {/* Emergency Contact */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-inter font-semibold text-gray-900 mb-4 flex items-center">
                   <FontAwesomeIcon
@@ -967,7 +1079,7 @@ const ApplicationDetailsPage: React.FC = () => {
                   onClick={() => setShowQRModal(false)}
                   className="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-inter font-medium"
                 >
-                  <span>Close</span>
+                                    <span>Close</span>
                 </button>
               </div>
             </div>

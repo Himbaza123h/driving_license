@@ -17,6 +17,7 @@ interface User {
   name: string;
   provider: "email" | "google" | "national-id";
   nationalId?: string;
+  roles: string;
   nationalIdData?: NationalIdData;
 }
 
@@ -134,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           "User",
         provider: "email",
         nationalId: result.profile?.national_id || result.user.national_id,
+        roles: result.profile.roles || "user",
       };
 
       console.log("AuthContext: Setting user data:", userData);
