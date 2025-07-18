@@ -303,7 +303,7 @@ const SuccessPage: React.FC = () => {
   };
 
   const goToApplications = (): void => {
-    router.push("/applications");
+    router.push("/my-applications");
   };
 
   // Show loading while checking authentication

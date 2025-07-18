@@ -32,6 +32,8 @@ export async function POST(request) {
         approved_at,
         rejected_at,
         created_at,
+        picked_up,
+        pickup_time,
         updated_at,
         photos
         `
@@ -39,7 +41,7 @@ export async function POST(request) {
       .eq("id", applicationId)
       .single();
 
-      console.log("This is application", application);
+    console.log("This is application", application);
 
     if (error) {
       if (error.code === "PGRST116") {
@@ -92,10 +94,8 @@ export async function POST(request) {
         .order("issue_date", { ascending: false })
         .limit(1);
 
-
       // Get the first (most recent) QR code
       const qrCode = qrCodes && qrCodes.length > 0 ? qrCodes[0] : null;
-
 
       if (!qrError && qrCode) {
         // Parse QR code data if it's a string
@@ -127,23 +127,25 @@ export async function POST(request) {
     }
 
     // Transform the data to match the expected format
-const transformedApplication = {
-  id: application.id,
-  citizenId: application.citizen_id,
-  licenseType: application.license_type,
-  status: application.status,
-  personalInfo: application.personal_info,
-  documents: application.documents || {},
-  emergencyContact: application.emergency_contact,
-  photos: application.photos || {},
-  reviewNotes: application.review_notes,
-  submittedAt: application.submitted_at,
-  approvedAt: application.approved_at,
-  rejectedAt: application.rejected_at,
-  createdAt: application.created_at,
-  updatedAt: application.updated_at,
-  qrCode: qrCodeData,
-};
+    const transformedApplication = {
+      id: application.id,
+      citizenId: application.citizen_id,
+      licenseType: application.license_type,
+      status: application.status,
+      personalInfo: application.personal_info,
+      documents: application.documents || {},
+      emergencyContact: application.emergency_contact,
+      photos: application.photos || {},
+      reviewNotes: application.review_notes,
+      submittedAt: application.submitted_at,
+      approvedAt: application.approved_at,
+      rejectedAt: application.rejected_at,
+      createdAt: application.created_at,
+      pickedUp: application.picked_up,
+      pickupTime: application.pickup_time,
+      updatedAt: application.updated_at,
+      qrCode: qrCodeData,
+    };
 
     return NextResponse.json({
       success: true,

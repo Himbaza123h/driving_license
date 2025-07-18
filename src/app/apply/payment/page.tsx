@@ -453,7 +453,7 @@ export default function PaymentPage(): JSX.Element | null {
                       name="cardholderName"
                       value={cardForm.cardholderName}
                       onChange={handleCardInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent text-black placeholder-gray-400"
                       placeholder="Alain jean"
                     />
                   </div>
@@ -468,7 +468,7 @@ export default function PaymentPage(): JSX.Element | null {
                       name="cardNumber"
                       value={cardForm.cardNumber}
                       onChange={handleCardInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent text-black placeholder-gray-400"
                       placeholder="1234 5678 9012 3456"
                     />
                   </div>
@@ -483,7 +483,7 @@ export default function PaymentPage(): JSX.Element | null {
                       name="expiryDate"
                       value={cardForm.expiryDate}
                       onChange={handleCardInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent text-black placeholder-gray-400"
                       placeholder="MM/YY"
                     />
                   </div>
@@ -498,7 +498,7 @@ export default function PaymentPage(): JSX.Element | null {
                       name="cvv"
                       value={cardForm.cvv}
                       onChange={handleCardInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent text-black placeholder-gray-400"
                       placeholder="123"
                     />
                   </div>
@@ -528,7 +528,7 @@ export default function PaymentPage(): JSX.Element | null {
                     name="phoneNumber"
                     value={mobileForm.phoneNumber}
                     onChange={handleMobileInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent text-black placeholder-gray-400"
                     placeholder="+250 700 000 000"
                   />
                 </div>
@@ -543,7 +543,7 @@ export default function PaymentPage(): JSX.Element | null {
                     name="pin"
                     value={mobileForm.pin}
                     onChange={handleMobileInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent text-black placeholder-gray-400"
                     placeholder="Enter your PIN"
                   />
                 </div>
@@ -572,7 +572,7 @@ export default function PaymentPage(): JSX.Element | null {
                     name="accountHolder"
                     value={bankForm.accountHolder}
                     onChange={handleBankInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent text-black placeholder-gray-400"
                     placeholder="Alain Jean"
                   />
                 </div>
@@ -586,15 +586,15 @@ export default function PaymentPage(): JSX.Element | null {
                     name="bankName"
                     value={bankForm.bankName}
                     onChange={handleBankInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent text-black"
                   >
-                    <option value="">Select Bank</option>
-                    <option value="Bank of Kigali">Bank of Kigali</option>
-                    <option value="Equity Bank">Equity Bank</option>
-                    <option value="Cogebanque">Cogebanque</option>
-                    <option value="I&M Bank">I&M Bank</option>
-                    <option value="Access Bank">Access Bank</option>
-                    <option value="Crane Bank">Crane Bank</option>
+                    <option value="" className="text-gray-400">Select Bank</option>
+                    <option value="Bank of Kigali" className="text-black">Bank of Kigali</option>
+                    <option value="Equity Bank" className="text-black">Equity Bank</option>
+                    <option value="Cogebanque" className="text-black">Cogebanque</option>
+                    <option value="I&M Bank" className="text-black">I&M Bank</option>
+                    <option value="Access Bank" className="text-black">Access Bank</option>
+                    <option value="Crane Bank" className="text-black">Crane Bank</option>
                   </select>
                 </div>
 
@@ -608,7 +608,7 @@ export default function PaymentPage(): JSX.Element | null {
                     name="accountNumber"
                     value={bankForm.accountNumber}
                     onChange={handleBankInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent text-black placeholder-gray-400"
                     placeholder="1234567890"
                   />
                 </div>
