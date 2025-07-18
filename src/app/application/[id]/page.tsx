@@ -22,7 +22,11 @@ import {
   faQrcode,
   faExpand,
   faTimes,
+  faCheck,
+  faSpinner,
+  faFingerprint,
 } from "@fortawesome/free-solid-svg-icons";
+
 import { useAuth } from "@/contexts/AuthContext";
 
 // Type definitions
@@ -121,6 +125,8 @@ interface ApplicationDetails {
   rejectedAt?: string;
   createdAt: string;
   updatedAt: string;
+  pickedUp?: boolean;
+  pickupTime?: string;
   licenseNumber?: string;
   qrCode?: QRCodeData;
 }
@@ -150,6 +156,20 @@ const ApplicationDetailsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [showQRModal, setShowQRModal] = useState<boolean>(false);
+  const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
+  const [reviewAction, setReviewAction] = useState<"approve" | "reject" | null>(
+    null
+  );
+  const [reviewNotes, setReviewNotes] = useState<string>("");
+  const [processingAction, setProcessingAction] = useState<string>("");
+
+  const [showPickupModal, setShowPickupModal] = useState<boolean>(false);
+  const [processingPickup, setProcessingPickup] = useState<boolean>(false);
+  const [pickupStatus, setPickupStatus] = useState<string>("");
+  const [fingerprintError, setFingerprintError] = useState<string>("");
+
+  const isAdmin = user?.roles === "admin";
+  const isUser = user?.roles === "user";
 
   useEffect(() => {
     if (applicationId && user?.nationalId) {
@@ -188,6 +208,164 @@ const ApplicationDetailsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApproveReject = async (): Promise<void> => {
+    if (!application || !reviewAction) return;
+
+    setProcessingAction(reviewAction); // Set to specific action
+    setError("");
+
+    try {
+      const response = await fetch("/api/admin/applications/approve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          applicationId: application.id,
+          action: reviewAction === "approve" ? "APPROVED" : "REJECTED",
+          reviewNotes: reviewNotes.trim() || undefined,
+          adminId: user?.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update the application state with the new data
+        setApplication((prev) => (prev ? { ...prev, ...data.data } : null));
+        setShowReviewModal(false);
+        setReviewAction(null);
+        setReviewNotes("");
+
+        // Show success message
+        // You might want to add a toast notification here
+      } else {
+        setError(data.error || `Failed to ${reviewAction} application`);
+      }
+    } catch (err) {
+      console.error(`Error ${reviewAction}ing application:`, err);
+      setError(`Network error. Failed to ${reviewAction} application.`);
+    } finally {
+      setProcessingAction(""); // Reset to empty string
+    }
+  };
+
+  const handleConfirmPickup = async (): Promise<void> => {
+    if (!application) return;
+
+    setProcessingPickup(true);
+    setFingerprintError("");
+    setPickupStatus("");
+
+    try {
+      // Check if WebAuthn is supported
+      if (!window.PublicKeyCredential) {
+        setFingerprintError(
+          "Fingerprint authentication is not supported on this device"
+        );
+        setProcessingPickup(false);
+        return;
+      }
+
+      // Request fingerprint authentication
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge: new Uint8Array(32),
+          rp: {
+            name: "Rwanda Driving License System",
+            id: window.location.hostname,
+          },
+          user: {
+            id: new TextEncoder().encode(user?.nationalId || ""),
+            name: user?.email || "",
+            displayName: `${application.personalInfo.firstName} ${application.personalInfo.lastName}`,
+          },
+          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            userVerification: "required",
+          },
+          timeout: 60000,
+        },
+      });
+
+      if (credential) {
+        // Fingerprint authentication successful
+        setPickupStatus("success");
+
+        // Call API to record pickup
+        const response = await fetch("/api/admin/applications/confirm-pickup", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            applicationId: application.id,
+            citizenId: user?.nationalId,
+            pickupTime: new Date().toISOString(),
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Update the application state with pickup info
+          setApplication((prev) => (prev ? { ...prev, ...data.data } : null));
+
+          // Close modal after 2 seconds
+          setTimeout(() => {
+            setShowPickupModal(false);
+            setPickupStatus("");
+          }, 2000);
+        } else {
+          setFingerprintError(data.error || "Failed to confirm pickup");
+          setPickupStatus("");
+        }
+      }
+    } catch (error: unknown) {
+      console.error("Fingerprint authentication failed:", error);
+
+      if (error.name === "NotAllowedError") {
+        setFingerprintError(
+          "Fingerprint authentication was cancelled or failed"
+        );
+      } else if (error.name === "NotSupportedError") {
+        setFingerprintError(
+          "Fingerprint authentication is not supported on this device"
+        );
+      } else {
+        setFingerprintError(
+          "Fingerprint authentication failed. Please try again."
+        );
+      }
+      setPickupStatus("");
+    } finally {
+      setProcessingPickup(false);
+    }
+  };
+
+  const shouldShowPickupButton = (): boolean => {
+    if (!application) return false;
+
+    const isApproved = application.status?.toLowerCase() === "approved";
+    const hasPermission = isAdmin || isUser;
+    const notPickedUp = !application.picked_up;
+
+    return isApproved && hasPermission && notPickedUp;
+  };
+
+  const openReviewModal = (action: "approve" | "reject") => {
+    setReviewAction(action);
+    setReviewNotes("");
+    setShowReviewModal(true);
+  };
+
+  const closeReviewModal = () => {
+    setShowReviewModal(false);
+    setReviewAction(null);
+    setReviewNotes("");
   };
 
   const getStatusColor = (status: string): string => {
@@ -282,6 +460,27 @@ const ApplicationDetailsPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  // Check if QR code should be visible
+  const shouldShowQRCode = () => {
+    if (!application?.qrCode) return false;
+
+    // Admin can always see QR code
+    if (isAdmin) return true;
+
+    // User can only see QR code if application is approved
+    if (isUser && application.status?.toLowerCase() === "approved") return true;
+
+    return false;
+  };
+
+  // Check if admin actions should be visible
+  const shouldShowAdminActions = () => {
+    if (!isAdmin || !application) return false;
+
+    const status = application.status?.toLowerCase();
+    return status !== "approved" && status !== "rejected";
+  };
+
   // Show loading while checking authentication
   if (isLoading) {
     return (
@@ -319,7 +518,8 @@ const ApplicationDetailsPage: React.FC = () => {
                   Application Details
                 </h1>
                 <p className="text-gray-600 font-inter mt-2">
-                  View detailed information about your license application
+                  View detailed information about {isAdmin ? "the" : "your"}{" "}
+                  license application
                 </p>
               </div>
             </div>
@@ -380,7 +580,60 @@ const ApplicationDetailsPage: React.FC = () => {
                       />
                       {application.status?.replace("_", " ").toUpperCase()}
                     </span>
-                    {application.status === "approved" && (
+
+                    {/* Admin Actions */}
+                    {shouldShowAdminActions() && (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => openReviewModal("approve")}
+                          disabled={processingAction !== ""}
+                          className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-inter font-medium"
+                        >
+                          {processingAction === "approve" ? (
+                            <FontAwesomeIcon
+                              icon={faSpinner}
+                              className="w-4 h-4 animate-spin"
+                            />
+                          ) : (
+                            <FontAwesomeIcon
+                              icon={faCheck}
+                              className="w-4 h-4"
+                            />
+                          )}
+                          <span>
+                            {processingAction === "approve"
+                              ? "Approving..."
+                              : "Approve"}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => openReviewModal("reject")}
+                          disabled={processingAction !== ""}
+                          className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-inter font-medium"
+                        >
+                          {processingAction === "reject" ? (
+                            <FontAwesomeIcon
+                              icon={faSpinner}
+                              className="w-4 h-4 animate-spin"
+                            />
+                          ) : (
+                            <FontAwesomeIcon
+                              icon={faTimes}
+                              className="w-4 h-4"
+                            />
+                          )}
+                          <span>
+                            {processingAction === "reject"
+                              ? "Rejecting..."
+                              : "Reject"}
+                          </span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Download License Button */}
+                    {/* {application.status === "approved" && ( */}
+                    <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handleDownload(application.id)}
                         className="flex items-center space-x-2 bg-[#2C8E5D] hover:bg-[#245A47] text-white px-4 py-2 rounded-lg font-inter font-medium"
@@ -391,7 +644,22 @@ const ApplicationDetailsPage: React.FC = () => {
                         />
                         <span>Download License</span>
                       </button>
-                    )}
+
+                      {/* Confirm Pickup Button */}
+                      {!application.pickedUp && (
+                        <button
+                          onClick={() => setShowPickupModal(true)}
+                          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-inter font-medium"
+                        >
+                          <FontAwesomeIcon
+                            icon={faFingerprint}
+                            className="w-4 h-4"
+                          />
+                          <span>Confirm Pickup</span>
+                        </button>
+                      )}
+                    </div>
+                    {/* )} */}
                   </div>
                 </div>
 
@@ -399,10 +667,12 @@ const ApplicationDetailsPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   <div className="text-center">
                     <div className="text-sm text-gray-500 font-inter">
-                      Submitted
+                      {application.pickedUp ? "Picked up at" : "Submitted at"}
                     </div>
                     <div className="text-lg font-inter font-semibold text-gray-900">
-                      {formatDate(application.submittedAt)}
+                      {application.picked_up
+                        ? formatDate(application.pickupTime || "")
+                        : formatDate(application.submittedAt)}
                     </div>
                   </div>
                   {application.approvedAt && (
@@ -440,8 +710,199 @@ const ApplicationDetailsPage: React.FC = () => {
                 )}
               </div>
 
-              {/* QR Code Section */}
-              {application.qrCode && (
+              {showReviewModal && reviewAction && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-lg max-w-md w-full p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-inter font-semibold text-gray-900">
+                        {reviewAction === "approve" ? "Approve" : "Reject"}{" "}
+                        Application
+                      </h3>
+                      <button
+                        onClick={closeReviewModal}
+                        disabled={processingAction !== ""}
+                        className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                      >
+                        <FontAwesomeIcon icon={faTimes} className="w-6 h-6" />
+                      </button>
+                    </div>
+
+                    <div className="mb-4">
+                      <p className="text-gray-600 font-inter mb-4">
+                        Are you sure you want to {reviewAction} this
+                        application?
+                      </p>
+
+                      <div>
+                        <label className="block text-sm font-inter font-medium text-gray-700 mb-2">
+                          Review Notes{" "}
+                          {reviewAction === "reject"
+                            ? "(Required)"
+                            : "(Optional)"}
+                        </label>
+                        <textarea
+                          value={reviewNotes}
+                          onChange={(e) => setReviewNotes(e.target.value)}
+                          placeholder={`Add ${
+                            reviewAction === "reject"
+                              ? "reason for rejection"
+                              : "approval notes"
+                          }...`}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent font-inter"
+                          rows={4}
+                          disabled={processingAction !== ""}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        onClick={closeReviewModal}
+                        disabled={processingAction !== ""}
+                        className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed rounded-lg font-inter font-medium"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleApproveReject}
+                        disabled={
+                          processingAction !== "" ||
+                          (reviewAction === "reject" && !reviewNotes.trim())
+                        }
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-inter font-medium text-white disabled:cursor-not-allowed ${
+                          reviewAction === "approve"
+                            ? "bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
+                            : "bg-red-600 hover:bg-red-700 disabled:bg-gray-400"
+                        }`}
+                      >
+                        {processingAction === reviewAction ? (
+                          <FontAwesomeIcon
+                            icon={faSpinner}
+                            className="w-4 h-4 animate-spin"
+                          />
+                        ) : (
+                          <FontAwesomeIcon
+                            icon={
+                              reviewAction === "approve" ? faCheck : faTimes
+                            }
+                            className="w-4 h-4"
+                          />
+                        )}
+                        <span>
+                          {processingAction === reviewAction
+                            ? `${
+                                reviewAction === "approve"
+                                  ? "Approving"
+                                  : "Rejecting"
+                              }...`
+                            : `${
+                                reviewAction === "approve"
+                                  ? "Approve"
+                                  : "Reject"
+                              }`}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showPickupModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-lg max-w-md w-full p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-inter font-semibold text-gray-900">
+                        Confirm License Pickup
+                      </h3>
+                      <button
+                        onClick={() => setShowPickupModal(false)}
+                        disabled={processingPickup}
+                        className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                      >
+                        <FontAwesomeIcon icon={faTimes} className="w-6 h-6" />
+                      </button>
+                    </div>
+
+                    <div className="text-center">
+                      {pickupStatus === "success" ? (
+                        <div className="mb-4">
+                          <FontAwesomeIcon
+                            icon={faCheckCircle}
+                            className="w-16 h-16 text-green-500 mx-auto mb-4"
+                          />
+                          <h4 className="text-lg font-inter font-semibold text-green-600 mb-2">
+                            Pickup Successful!
+                          </h4>
+                          <p className="text-gray-600 font-inter">
+                            Your license pickup has been confirmed successfully.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mb-4">
+                          <FontAwesomeIcon
+                            icon={faFingerprint}
+                            className="w-16 h-16 text-blue-500 mx-auto mb-4"
+                          />
+                          <h4 className="text-lg font-inter font-semibold text-gray-900 mb-2">
+                            Fingerprint Authentication Required
+                          </h4>
+                          <p className="text-gray-600 font-inter mb-4">
+                            Please use your device&apos;s fingerprint sensor to
+                            confirm the pickup of your driving license.
+                          </p>
+
+                          {fingerprintError && (
+                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                              <FontAwesomeIcon
+                                icon={faExclamationTriangle}
+                                className="w-5 h-5 text-red-500 mr-2"
+                              />
+                              <span className="text-sm text-red-700 font-inter">
+                                {fingerprintError}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex justify-center space-x-3">
+                            <button
+                              onClick={() => setShowPickupModal(false)}
+                              disabled={processingPickup}
+                              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed rounded-lg font-inter font-medium"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleConfirmPickup}
+                              disabled={processingPickup}
+                              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-inter font-medium"
+                            >
+                              {processingPickup ? (
+                                <FontAwesomeIcon
+                                  icon={faSpinner}
+                                  className="w-4 h-4 animate-spin"
+                                />
+                              ) : (
+                                <FontAwesomeIcon
+                                  icon={faFingerprint}
+                                  className="w-4 h-4"
+                                />
+                              )}
+                              <span>
+                                {processingPickup
+                                  ? "Authenticating..."
+                                  : "Authenticate"}
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* QR Code Section - Only show if conditions are met */}
+              {shouldShowQRCode() && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-inter font-semibold text-gray-900 mb-4 flex items-center">
                     <FontAwesomeIcon
@@ -449,6 +910,12 @@ const ApplicationDetailsPage: React.FC = () => {
                       className="w-5 h-5 mr-2 text-[#2C8E5D]"
                     />
                     Digital License QR Code
+                    {isAdmin &&
+                      application.status?.toLowerCase() !== "approved" && (
+                        <span className="ml-2 text-sm text-orange-600 font-normal">
+                          (Admin Preview)
+                        </span>
+                      )}
                   </h3>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -702,7 +1169,6 @@ const ApplicationDetailsPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-
               {/* Emergency Contact */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-inter font-semibold text-gray-900 mb-4 flex items-center">
