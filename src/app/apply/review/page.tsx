@@ -5,7 +5,6 @@ import Image from "next/image";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
-  faCheck,
   faEdit,
   faFileAlt,
   faUser,
@@ -14,6 +13,7 @@ import {
   faExclamationTriangle,
   faCheckCircle,
   faSpinner,
+  faCreditCard,
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApplication } from "@/contexts/ApplicationContext";
@@ -25,14 +25,10 @@ import {
 export default function ReviewPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const { applicationData, setCurrentStep, submitApplication } =
-    useApplication();
+  const { applicationData, setCurrentStep } = useApplication();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  // const [setQrCodeData] = useState(null);
   const [submitError, setSubmitError] = useState("");
-  const [isGeneratingQR, setIsGeneratingQR] = useState(false);
 
   useEffect(() => {
     setCurrentStep(5);
@@ -45,164 +41,6 @@ export default function ReviewPage() {
 
   if (!user) {
     return null;
-  }
-
-  // Redirect if no license type selected
-  // if (!applicationData.licenseType) {
-  //   router.push("/apply");
-  //   return <LoadingSpinner message="Redirecting..." />;
-  // }
-
-  // If already submitted, show confirmation
-  if (isSubmitted || applicationData.isSubmitted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FontAwesomeIcon
-                icon={faCheckCircle}
-                className="w-8 h-8 text-green-600"
-              />
-            </div>
-
-            <h2 className="text-2xl font-inter font-bold text-gray-900 mb-4">
-              Application Submitted Successfully!
-            </h2>
-
-            <p className="text-gray-600 font-inter mb-6">
-              Your driver&apos;s license application has been submitted and your
-              QR code has been generated.
-            </p>
-
-            <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-inter font-medium text-green-800">
-                  Application ID:
-                </span>
-                <span className="font-inter font-bold text-green-900">
-                  {applicationData.applicationId}
-                </span>
-              </div>
-              {/* {qrCodeData && (
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-inter font-medium text-green-800">
-                    License Number:
-                  </span>
-                  <span className="font-inter font-bold text-green-900">
-                    {qrCodeData.license_number}
-                  </span>
-                </div>
-              )} */}
-              <p className="text-sm text-green-700">
-                Please save this information for your records. You can use it to
-                track your application status.
-              </p>
-            </div>
-
-            <div className="space-y-4 text-left mb-8">
-              <h3 className="font-inter font-semibold text-gray-900">
-                What happens next:
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-start">
-                  <div className="w-6 h-6 bg-[#2C8E5D] rounded-full flex items-center justify-center mr-3 mt-0.5">
-                    <span className="text-white text-xs font-bold">1</span>
-                  </div>
-                  <div>
-                    <p className="font-inter font-medium text-gray-900">
-                      Document Verification
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      We&apos;ll verify all your submitted documents (2-3
-                      business days)
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <div className="w-6 h-6 bg-[#2C8E5D] rounded-full flex items-center justify-center mr-3 mt-0.5">
-                    <span className="text-white text-xs font-bold">2</span>
-                  </div>
-                  <div>
-                    <p className="font-inter font-medium text-gray-900">
-                      Theory Test Scheduling
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      You&apos;ll receive a notification to schedule your theory
-                      test
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <div className="w-6 h-6 bg-[#2C8E5D] rounded-full flex items-center justify-center mr-3 mt-0.5">
-                    <span className="text-white text-xs font-bold">3</span>
-                  </div>
-                  <div>
-                    <p className="font-inter font-medium text-gray-900">
-                      Practical Test
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      After passing theory, schedule your practical driving test
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <div className="w-6 h-6 bg-[#2C8E5D] rounded-full flex items-center justify-center mr-3 mt-0.5">
-                    <span className="text-white text-xs font-bold">4</span>
-                  </div>
-                  <div>
-                    <p className="font-inter font-medium text-gray-900">
-                      License Issuance
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Your license will be issued within 5 business days after
-                      passing all tests
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => {
-                  setIsGeneratingQR(true);
-                  router.push("/apply/qr-code");
-                }}
-                disabled={isGeneratingQR}
-                className="px-6 py-3 bg-[#2C8E5D] hover:bg-[#245A47] text-white rounded-lg transition-all font-inter font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGeneratingQR ? (
-                  <>
-                    <FontAwesomeIcon
-                      icon={faSpinner}
-                      className="w-4 h-4 animate-spin mr-2"
-                    />
-                    <span>Generating QR Code...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Generate QR Code</span>
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => router.push("/dashboard")}
-                className="px-6 py-3 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-all font-inter font-medium"
-              >
-                Go to Dashboard
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="px-6 py-3 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-all font-inter font-medium"
-              >
-                Print Receipt
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   const getLicenseTypeInfo = () => {
@@ -256,7 +94,6 @@ export default function ReviewPage() {
     console.log("🚀 handleSubmit function called!");
     console.log("🔍 Current state:", {
       isSubmitting,
-      isSubmitted,
       submitError,
     });
     console.log("📋 Application data:", applicationData);
@@ -272,14 +109,12 @@ export default function ReviewPage() {
         throw new Error("This action can only be performed on the client side");
       }
 
-      // 2. Get nationalId from application data instead of sessionStorage
+      // 2. Get nationalId from application data
       const nationalId = applicationData.personalInfo?.nationalId;
 
-      // 3. Try to get applicationId from sessionStorage, if not available, generate one
+      // 3. Generate application ID
       let applicationId = sessionStorage.getItem("applicationId");
-
       if (!applicationId) {
-        // Generate a temporary application ID if not found
         applicationId = `APP-${Date.now()}-${Math.random()
           .toString(36)
           .substring(2, 8)
@@ -287,7 +122,7 @@ export default function ReviewPage() {
         sessionStorage.setItem("applicationId", applicationId);
       }
 
-      console.log("Retrieved/Generated application data:", {
+      console.log("Generated application data:", {
         applicationId,
         nationalId,
       });
@@ -303,54 +138,24 @@ export default function ReviewPage() {
         throw new Error("Incomplete application data");
       }
 
-      // 5. Submit the application - removed the truthiness check
-      await submitApplication();
-
-      // 6. Generate QR code
-      const qrResponse = await fetch("/api/qr-codes/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          applicationId: applicationId,
-          nationalId: nationalId,
-          licenseType: applicationData.licenseType,
-          personalInfo: applicationData.personalInfo,
-        }),
-      });
-
-      if (!qrResponse.ok) {
-        const errorData = await qrResponse.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || "Failed to generate QR code. Please try again."
-        );
-      }
-
-      const qrResult = await qrResponse.json();
-
-      if (!qrResult.success) {
-        throw new Error(qrResult.error || "QR code generation failed");
-      }
-
-      // 7. Update state with successful submission
-      // setQrCodeData(qrResult.data);
-      setIsSubmitted(true);
-
-      // 8. Store the successful submission data
-      sessionStorage.setItem("applicationSubmitted", "true");
-      sessionStorage.setItem("qrCodeData", JSON.stringify(qrResult.data));
-
-      // 9. Optional: Track successful submission
-      console.log("Application submitted successfully", {
+      // 5. Store application data for payment processing
+      const applicationForPayment = {
         applicationId,
         nationalId,
-        qrData: qrResult.data,
-      });
+        licenseType: applicationData.licenseType,
+        personalInfo: applicationData.personalInfo,
+        documents: applicationData.documents,
+        photo: applicationData.photo,
+        licenseInfo,
+        timestamp: new Date().toISOString(),
+      };
 
-      // 10. Navigate to QR code page after successful submission
-      console.log("🎉 Submission successful! Navigating to QR code page...");
-      router.push("/apply/qr-code");
+      sessionStorage.setItem("pendingApplication", JSON.stringify(applicationForPayment));
+
+      // 6. Navigate to payment page
+      console.log("🎉 Validation successful! Navigating to payment page...");
+      router.push("/apply/payment");
+
     } catch (error) {
       console.error("❌ Submission error:", error);
 
@@ -393,7 +198,7 @@ export default function ReviewPage() {
               Review Your Application
             </h2>
             <p className="text-gray-600 font-inter">
-              Please review all information before submitting your application.
+              Please review all information before proceeding to payment.
               You can edit any section if needed.
             </p>
           </div>
@@ -651,7 +456,7 @@ export default function ReviewPage() {
                     Declaration
                   </h4>
                   <p className="text-sm text-yellow-700 mb-3">
-                    By submitting this application, I declare that:
+                    By proceeding to payment, I declare that:
                   </p>
                   <ul className="text-sm text-yellow-700 space-y-1 ml-4">
                     <li>• All information provided is true and accurate</li>
@@ -695,12 +500,12 @@ export default function ReviewPage() {
                       icon={faSpinner}
                       className="w-4 h-4 animate-spin"
                     />
-                    <span>Submitting...</span>
+                    <span>Processing...</span>
                   </>
                 ) : (
                   <>
-                    <FontAwesomeIcon icon={faCheck} className="w-4 h-4" />
-                    <span>Submit Application</span>
+                    <FontAwesomeIcon icon={faCreditCard} className="w-4 h-4" />
+                    <span>Proceed to Payment</span>
                   </>
                 )}
               </button>

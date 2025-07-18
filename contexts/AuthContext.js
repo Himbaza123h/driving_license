@@ -12,11 +12,24 @@ export function AuthProvider({ children }) {
   const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const enrichUserWithProfile = (supabaseUser, profile) => {
+    if (!supabaseUser) return null;
+    
+    return {
+      ...supabaseUser,
+      roles: profile?.roles || "user",
+      // Add other profile fields you want directly accessible on user
+      name: profile?.full_name || profile?.name || supabaseUser.email?.split("@")[0] || "User",
+      nationalId: profile?.national_id,
+      phoneNumber: profile?.phone_number,
+      // Add any other fields you need from the profile
+    }
+  }
+
   useEffect(() => {
     // Get initial session
     const getSession = async () => {
       const { data: { session } } = await supabaseAdmin.auth.getSession()
-      setUser(session?.user ?? null)
       
       if (session?.user) {
         // Fetch user profile
@@ -25,7 +38,12 @@ export function AuthProvider({ children }) {
           .select('*')
           .eq('id', session.user.id)
           .single()
+        
         setUserProfile(profile)
+        setUser(enrichUserWithProfile(session.user, profile))
+      } else {
+        setUser(null)
+        setUserProfile(null)
       }
       
       setLoading(false)
@@ -36,8 +54,6 @@ export function AuthProvider({ children }) {
     // Listen for auth changes
     const { data: { subscription } } = supabaseAdmin.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ?? null)
-        
         if (session?.user) {
           // Fetch user profile
           const { data: profile } = await supabaseAdmin
@@ -45,9 +61,12 @@ export function AuthProvider({ children }) {
             .select('*')
             .eq('id', session.user.id)
             .single()
+          
           setUserProfile(profile)
+          setUser(enrichUserWithProfile(session.user, profile))
         } else {
           setUserProfile(null)
+          setUser(null)
         }
         
         setLoading(false)
@@ -72,7 +91,13 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     })
-    return response.json()
+    
+    const result = await response.json()
+    
+    // If login is successful, the auth state change will trigger automatically
+    // and fetch the user profile, so we don't need to manually set user here
+    
+    return result
   }
 
   const signOut = async () => {
@@ -102,8 +127,8 @@ export function AuthProvider({ children }) {
   }
 
   const value = {
-    user,
-    userProfile,
+    user, // Now includes roles and other profile data
+    userProfile, // Still available for complete profile access
     loading,
     signUp,
     signIn,

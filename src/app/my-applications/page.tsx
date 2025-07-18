@@ -22,6 +22,8 @@ interface Application {
   submittedAt: string;
   approvedAt?: string;
   rejectedAt?: string;
+  pickedUp?: boolean;
+  pickupTime?: string;
   reviewNotes?: string;
 }
 

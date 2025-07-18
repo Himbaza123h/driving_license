@@ -347,7 +347,7 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("firstName", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors.firstName ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Enter your first name"
@@ -369,7 +369,7 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("lastName", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors.lastName ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Enter your last name"
@@ -391,7 +391,7 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("middleName", e.target.value)
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400"
                     placeholder="Enter your middle name (optional)"
                   />
                 </div>
@@ -399,14 +399,14 @@ export default function PersonalInfoPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Date of Birth *
-                  </label>{" "}
+                  </label>
                   <input
                     type="date"
                     value={formData.dateOfBirth || ""}
                     onChange={(e) =>
                       handleInputChange("dateOfBirth", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 ${
                       errors.dateOfBirth ? "border-red-300" : "border-gray-300"
                     }`}
                     title="Select your date of birth"
@@ -428,7 +428,7 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("placeOfBirth", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors.placeOfBirth ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Enter your place of birth"
@@ -443,20 +443,20 @@ export default function PersonalInfoPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Gender *
-                  </label>{" "}
+                  </label>
                   <select
                     value={formData.gender || ""}
                     onChange={(e) =>
                       handleInputChange("gender", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 ${
                       errors.gender ? "border-red-300" : "border-gray-300"
                     }`}
                     title="Select your gender"
                   >
-                    <option value="">Select gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
+                    <option value="" className="text-gray-400">Select gender</option>
+                    <option value="Male" className="text-gray-900">Male</option>
+                    <option value="Female" className="text-gray-900">Female</option>
                   </select>
                   {errors.gender && (
                     <p className="mt-1 text-sm text-red-600">{errors.gender}</p>
@@ -481,7 +481,7 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("nationality", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors.nationality ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="Enter your nationality"
@@ -502,12 +502,10 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("nationalId", e.target.value)
                     }
-                    readOnly={!!user?.nationalId} // Add this line
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    // readOnly={!!user?.nationalId} // Add this line
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors.nationalId ? "border-red-300" : "border-gray-300"
-                    } ${
-                      !!user?.nationalId ? "bg-gray-100 cursor-not-allowed" : ""
-                    }`} // Add gray background when readonly
+                    } `} // Add gray background when readonly
                     placeholder="1234 5678 9012 3456"
                   />
                   {user?.nationalId && (
@@ -532,7 +530,7 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("phoneNumber", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors.phoneNumber ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="+257 XX XX XX XX"
@@ -552,7 +550,7 @@ export default function PersonalInfoPage() {
                     type="email"
                     value={formData.email || ""}
                     onChange={(e) => handleInputChange("email", e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors.email ? "border-red-300" : "border-gray-300"
                     }`}
                     placeholder="your.email@example.com"
@@ -573,22 +571,22 @@ export default function PersonalInfoPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Province *
-                  </label>{" "}
+                  </label>
                   <select
                     value={formData.address?.province || ""}
                     onChange={(e) =>
                       handleInputChange("address.province", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 ${
                       errors["address.province"]
                         ? "border-red-300"
                         : "border-gray-300"
                     }`}
                     title="Select your province"
                   >
-                    <option value="">Select province</option>
+                    <option value="" className="text-gray-400">Select province</option>
                     {provinces.map((province) => (
-                      <option key={province} value={province}>
+                      <option key={province} value={province} className="text-gray-900">
                         {province}
                       </option>
                     ))}
@@ -610,7 +608,7 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("address.commune", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors["address.commune"]
                         ? "border-red-300"
                         : "border-gray-300"
@@ -634,7 +632,7 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("address.zone", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors["address.zone"]
                         ? "border-red-300"
                         : "border-gray-300"
@@ -658,7 +656,7 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("address.street", e.target.value)
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400"
                     placeholder="Enter street address"
                   />
                 </div>
@@ -681,7 +679,7 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("emergencyContact.name", e.target.value)
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors["emergencyContact.name"]
                         ? "border-red-300"
                         : "border-gray-300"
@@ -698,7 +696,7 @@ export default function PersonalInfoPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Relationship *
-                  </label>{" "}
+                  </label>
                   <select
                     value={formData.emergencyContact?.relationship || ""}
                     onChange={(e) =>
@@ -707,16 +705,16 @@ export default function PersonalInfoPage() {
                         e.target.value
                       )
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 ${
                       errors["emergencyContact.relationship"]
                         ? "border-red-300"
                         : "border-gray-300"
                     }`}
                     title="Select relationship to emergency contact"
                   >
-                    <option value="">Select relationship</option>
+                    <option value="" className="text-gray-400">Select relationship</option>
                     {relationships.map((rel) => (
-                      <option key={rel} value={rel}>
+                      <option key={rel} value={rel} className="text-gray-900">
                         {rel}
                       </option>
                     ))}
@@ -741,7 +739,7 @@ export default function PersonalInfoPage() {
                         e.target.value
                       )
                     }
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors["emergencyContact.phoneNumber"]
                         ? "border-red-300"
                         : "border-gray-300"
@@ -776,6 +774,7 @@ export default function PersonalInfoPage() {
                 </div>
               </div>
             </div>
+
 
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-6 border-t border-gray-200">
