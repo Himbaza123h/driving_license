@@ -74,11 +74,17 @@ export default function PaymentPage(): JSX.Element | null {
   const router = useRouter();
   const { setCurrentStep, submitApplication } = useApplication();
 
-  const [pendingApplication, setPendingApplication] = useState<PendingApplication | null>(null);
+  const [pendingApplication, setPendingApplication] =
+    useState<PendingApplication | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [paymentError, setPaymentError] = useState<string>("");
   const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
+
+  const [qrCodeData, setQrCodeData] = useState<any>(null);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+  const [isExisting, setIsExisting] = useState<boolean>(false);
 
   // Form states
   const [cardForm, setCardForm] = useState<CardForm>({
@@ -101,7 +107,7 @@ export default function PaymentPage(): JSX.Element | null {
 
   useEffect(() => {
     setCurrentStep(6);
-    
+
     // Get pending application data
     const storedApplication = sessionStorage.getItem("pendingApplication");
     if (storedApplication) {
@@ -125,54 +131,142 @@ export default function PaymentPage(): JSX.Element | null {
     return <LoadingSpinner message="Loading application data..." />;
   }
 
-  const handleCardInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleCardInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): void => {
     const { name, value } = e.target;
-    
+
     // Format card number
     if (name === "cardNumber") {
-      const formattedValue = value.replace(/\s+/g, '').replace(/(\d{4})/g, '$1 ').trim();
-      setCardForm(prev => ({
+      const formattedValue = value
+        .replace(/\s+/g, "")
+        .replace(/(\d{4})/g, "$1 ")
+        .trim();
+      setCardForm((prev) => ({
         ...prev,
-        [name]: formattedValue.substring(0, 19) // Max 16 digits + 3 spaces
+        [name]: formattedValue.substring(0, 19), // Max 16 digits + 3 spaces
       }));
     }
     // Format expiry date
     else if (name === "expiryDate") {
-      const formattedValue = value.replace(/\D/g, '').replace(/(\d{2})(\d{0,2})/, '$1/$2');
-      setCardForm(prev => ({
+      const formattedValue = value
+        .replace(/\D/g, "")
+        .replace(/(\d{2})(\d{0,2})/, "$1/$2");
+      setCardForm((prev) => ({
         ...prev,
-        [name]: formattedValue.substring(0, 5)
+        [name]: formattedValue.substring(0, 5),
       }));
     }
     // Format CVV
     else if (name === "cvv") {
-      setCardForm(prev => ({
+      setCardForm((prev) => ({
         ...prev,
-        [name]: value.replace(/\D/g, '').substring(0, 3)
+        [name]: value.replace(/\D/g, "").substring(0, 3),
       }));
-    }
-    else {
-      setCardForm(prev => ({
+    } else {
+      setCardForm((prev) => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     }
   };
 
-  const handleMobileInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleMobileInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): void => {
     const { name, value } = e.target;
-    setMobileForm(prev => ({
+    setMobileForm((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
-  const handleBankInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
+  const handleBankInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ): void => {
     const { name, value } = e.target;
-    setBankForm(prev => ({
+    setBankForm((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
+  };
+
+  const generateQRCode = async (): Promise<void> => {
+    if (!pendingApplication.applicationId) {
+      setPaymentError("Application ID not found");
+      return;
+    }
+    setIsGenerating(true);
+    setPaymentError("");
+    setIsExisting(false);
+    try {
+      const response = await fetch("/api/qr-codes/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          applicationId: pendingApplication.applicationId,
+          licenseType: pendingApplication.licenseInfo.name,
+          personalInfo: user, // or whatever personal info you have
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to generate QR code");
+      }
+      setQrCodeData(result.data);
+      console.log("QR Code generated successfully:", result.data);
+      // Check if this was an existing QR code
+      if (
+        result.message?.includes("existing") ||
+        result.message?.includes("retrieved")
+      ) {
+        setIsExisting(true);
+        console.log("Existing QR Code retrieved successfully");
+      } else {
+        console.log("New QR Code generated successfully");
+      }
+    } catch (error) {
+      console.error("Error generating QR code:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to generate QR code";
+      setPaymentError(errorMessage);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRegenerateQRCode = async (): Promise<void> => {
+    if (!pendingApplication.applicationId) {
+      setPaymentError("Application information not found");
+      return;
+    }
+    setIsGenerating(true);
+    setPaymentError("");
+    try {
+      const deleteResponse = await fetch("/api/qr-codes/delete", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          applicationId: pendingApplication.applicationId,
+        }),
+      });
+      if (!deleteResponse.ok) {
+        console.warn(
+          "Could not delete existing QR code, proceeding with generation"
+        );
+      }
+      await generateQRCode();
+    } catch (error) {
+      console.error("Error regenerating QR code:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to regenerate QR code";
+      setPaymentError(errorMessage);
+      setIsGenerating(false);
+    }
   };
 
   const validatePaymentForm = (): boolean => {
@@ -182,7 +276,7 @@ export default function PaymentPage(): JSX.Element | null {
         setPaymentError("Please fill in all card details");
         return false;
       }
-      if (cardNumber.replace(/\s/g, '').length < 16) {
+      if (cardNumber.replace(/\s/g, "").length < 16) {
         setPaymentError("Please enter a valid card number");
         return false;
       }
@@ -220,8 +314,12 @@ export default function PaymentPage(): JSX.Element | null {
         applicationId: pendingApplication.applicationId,
         amount: pendingApplication.licenseInfo.price,
         method: paymentMethod,
-        details: paymentMethod === "card" ? cardForm : 
-                 paymentMethod === "mobile" ? mobileForm : bankForm,
+        details:
+          paymentMethod === "card"
+            ? cardForm
+            : paymentMethod === "mobile"
+            ? mobileForm
+            : bankForm,
         timestamp: new Date().toISOString(),
       };
 
@@ -238,20 +336,24 @@ export default function PaymentPage(): JSX.Element | null {
 
       if (!paymentResponse.ok) {
         const errorData = await paymentResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.error || "Payment processing failed");
+        throw new Error(
+          errorData.message || errorData.error || "Payment processing failed"
+        );
       }
 
       const paymentResult: PaymentResponse = await paymentResponse.json();
 
-      // Fixed: Check for success and show specific error message
       if (!paymentResult.success) {
-        // Use the specific error message from the response
-        const errorMessage = paymentResult.error || paymentResult.message || "Payment failed";
+        const errorMessage =
+          paymentResult.error || paymentResult.message || "Payment failed";
         setPaymentError(errorMessage);
-        return; // Don't throw, just return to show the error
+        return;
       }
 
-      // Submit application after successful payment
+      // Generate QR code after successful payment
+      await generateQRCode();
+
+      // Submit application after successful payment and QR code generation
       await submitApplication();
 
       // Store payment success data
@@ -266,10 +368,10 @@ export default function PaymentPage(): JSX.Element | null {
       setTimeout(() => {
         router.push("/apply/success");
       }, 2000);
-
     } catch (error) {
       console.error("Payment error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Payment processing failed";
+      const errorMessage =
+        error instanceof Error ? error.message : "Payment processing failed";
       setPaymentError(errorMessage);
     } finally {
       setIsProcessing(false);
@@ -295,7 +397,8 @@ export default function PaymentPage(): JSX.Element | null {
               Payment Successful!
             </h2>
             <p className="text-gray-600 font-inter mb-6">
-              Your payment has been processed successfully. Redirecting to confirmation page...
+              Your payment has been processed successfully. Redirecting to
+              confirmation page...
             </p>
             <div className="flex justify-center">
               <FontAwesomeIcon
@@ -320,7 +423,8 @@ export default function PaymentPage(): JSX.Element | null {
               Payment Information
             </h2>
             <p className="text-gray-600 font-inter">
-              Complete your payment to submit your driver&apos;s license application.
+              Complete your payment to submit your driver&apos;s license
+              application.
             </p>
           </div>
 
@@ -349,7 +453,9 @@ export default function PaymentPage(): JSX.Element | null {
                 </span>
               </div>
               <div className="flex justify-between border-t pt-3">
-                <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
+                <span className="text-lg font-semibold text-gray-900">
+                  Total Amount:
+                </span>
                 <span className="text-lg font-bold text-[#2C8E5D]">
                   {pendingApplication.licenseInfo.price}
                 </span>
@@ -377,7 +483,9 @@ export default function PaymentPage(): JSX.Element | null {
                     icon={faCreditCard}
                     className="w-5 h-5 text-[#2C8E5D] mr-2"
                   />
-                  <span className="font-medium text-gray-900">Credit/Debit Card</span>
+                  <span className="font-medium text-gray-900">
+                    Credit/Debit Card
+                  </span>
                 </div>
                 <p className="text-sm text-gray-600">
                   Pay with your Visa, Mastercard, or other cards
@@ -398,7 +506,9 @@ export default function PaymentPage(): JSX.Element | null {
                     icon={faMobile}
                     className="w-5 h-5 text-[#2C8E5D] mr-2"
                   />
-                  <span className="font-medium text-gray-900">Mobile Payment</span>
+                  <span className="font-medium text-gray-900">
+                    Mobile Payment
+                  </span>
                 </div>
                 <p className="text-sm text-gray-600">
                   Pay with MTN Mobile Money or Airtel Money
@@ -419,7 +529,9 @@ export default function PaymentPage(): JSX.Element | null {
                     icon={faUniversity}
                     className="w-5 h-5 text-[#2C8E5D] mr-2"
                   />
-                  <span className="font-medium text-gray-900">Bank Transfer</span>
+                  <span className="font-medium text-gray-900">
+                    Bank Transfer
+                  </span>
                 </div>
                 <p className="text-sm text-gray-600">
                   Pay via direct bank transfer
@@ -460,7 +572,10 @@ export default function PaymentPage(): JSX.Element | null {
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <FontAwesomeIcon icon={faIdCard} className="w-4 h-4 mr-1" />
+                      <FontAwesomeIcon
+                        icon={faIdCard}
+                        className="w-4 h-4 mr-1"
+                      />
                       Card Number
                     </label>
                     <input
@@ -475,7 +590,10 @@ export default function PaymentPage(): JSX.Element | null {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <FontAwesomeIcon icon={faCalendarAlt} className="w-4 h-4 mr-1" />
+                      <FontAwesomeIcon
+                        icon={faCalendarAlt}
+                        className="w-4 h-4 mr-1"
+                      />
                       Expiry Date
                     </label>
                     <input
@@ -579,7 +697,10 @@ export default function PaymentPage(): JSX.Element | null {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <FontAwesomeIcon icon={faUniversity} className="w-4 h-4 mr-1" />
+                    <FontAwesomeIcon
+                      icon={faUniversity}
+                      className="w-4 h-4 mr-1"
+                    />
                     Bank Name
                   </label>
                   <select
@@ -588,13 +709,27 @@ export default function PaymentPage(): JSX.Element | null {
                     onChange={handleBankInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2C8E5D] focus:border-transparent text-black"
                   >
-                    <option value="" className="text-gray-400">Select Bank</option>
-                    <option value="Bank of Kigali" className="text-black">Bank of Kigali</option>
-                    <option value="Equity Bank" className="text-black">Equity Bank</option>
-                    <option value="Cogebanque" className="text-black">Cogebanque</option>
-                    <option value="I&M Bank" className="text-black">I&M Bank</option>
-                    <option value="Access Bank" className="text-black">Access Bank</option>
-                    <option value="Crane Bank" className="text-black">Crane Bank</option>
+                    <option value="" className="text-gray-400">
+                      Select Bank
+                    </option>
+                    <option value="Bank of Kigali" className="text-black">
+                      Bank of Kigali
+                    </option>
+                    <option value="Equity Bank" className="text-black">
+                      Equity Bank
+                    </option>
+                    <option value="Cogebanque" className="text-black">
+                      Cogebanque
+                    </option>
+                    <option value="I&M Bank" className="text-black">
+                      I&M Bank
+                    </option>
+                    <option value="Access Bank" className="text-black">
+                      Access Bank
+                    </option>
+                    <option value="Crane Bank" className="text-black">
+                      Crane Bank
+                    </option>
                   </select>
                 </div>
 
@@ -672,8 +807,9 @@ export default function PaymentPage(): JSX.Element | null {
               />
               <div>
                 <p className="text-sm text-blue-800">
-                  <strong>Secure Payment:</strong> Your payment information is protected with 
-                  256-bit SSL encryption. We never store your card details on our servers.
+                  <strong>Secure Payment:</strong> Your payment information is
+                  protected with 256-bit SSL encryption. We never store your
+                  card details on our servers.
                 </p>
               </div>
             </div>
