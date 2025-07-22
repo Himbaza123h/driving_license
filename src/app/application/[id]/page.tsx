@@ -196,7 +196,6 @@ const ApplicationDetailsPage: React.FC = () => {
       });
 
       const data: ApiResponse = await response.json();
-      
 
       if (data.success) {
         setApplication(data.data);
@@ -291,6 +290,8 @@ const ApplicationDetailsPage: React.FC = () => {
           setShowPickupModal(false);
           setPickupStatus("");
         }, 2000);
+        // reload page
+        window.location.reload();
       } else {
         setFingerprintError(data.error || "Failed to confirm pickup");
         setPickupStatus("");
@@ -401,8 +402,6 @@ const ApplicationDetailsPage: React.FC = () => {
         return type?.replace("_", " ").toUpperCase() || "Unknown";
     }
   };
-
-
 
   const downloadQRCode = (): void => {
     if (!application?.qrCode?.qrCodeImage) return;
@@ -589,6 +588,19 @@ const ApplicationDetailsPage: React.FC = () => {
                     )}
                     {/* {application.status === "approved" && ( */}
                     <div className="flex items-center space-x-2">
+                      {/* Download qr code  to picked up license*/}
+                      {shouldShowQRCode() && application.pickedUp && (
+                        <button
+                          onClick={downloadQRCode}
+                          className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-inter font-medium"
+                        >
+                          <FontAwesomeIcon
+                            icon={faDownload}
+                            className="w-4 h-4"
+                          />
+                          <span>Download QR Code</span>
+                        </button>
+                      )}
 
                       {/* Confirm Pickup Button */}
                       {shouldShowPickupButton() && (
@@ -611,9 +623,15 @@ const ApplicationDetailsPage: React.FC = () => {
                 {/* Timeline */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   <div className="text-center">
-                      <div className={`text-sm font-inter ${application.pickedUp ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
-    {application.pickedUp ? "Picked up at" : "Submitted at"}
-  </div>
+                    <div
+                      className={`text-sm font-inter ${
+                        application.pickedUp
+                          ? "text-red-600 font-semibold"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {application.pickedUp ? "Picked up at" : "Submitted at"}
+                    </div>
                     <div className="text-lg font-inter font-semibold text-gray-900">
                       {application.pickedUp
                         ? formatDate(application.pickupTime || "")
