@@ -454,9 +454,15 @@ export default function PersonalInfoPage() {
                     }`}
                     title="Select your gender"
                   >
-                    <option value="" className="text-gray-400">Select gender</option>
-                    <option value="Male" className="text-gray-900">Male</option>
-                    <option value="Female" className="text-gray-900">Female</option>
+                    <option value="" className="text-gray-400">
+                      Select gender
+                    </option>
+                    <option value="Male" className="text-gray-900">
+                      Male
+                    </option>
+                    <option value="Female" className="text-gray-900">
+                      Female
+                    </option>
                   </select>
                   {errors.gender && (
                     <p className="mt-1 text-sm text-red-600">{errors.gender}</p>
@@ -502,10 +508,12 @@ export default function PersonalInfoPage() {
                     onChange={(e) =>
                       handleInputChange("nationalId", e.target.value)
                     }
-                    // readOnly={!!user?.nationalId} // Add this line
+                    readOnly={!!user?.nationalId} // Add this line
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors.nationalId ? "border-red-300" : "border-gray-300"
-                    } `} // Add gray background when readonly
+                    } ${
+                      user?.nationalId ? "bg-gray-50 cursor-not-allowed" : ""
+                    }`}
                     placeholder="1234 5678 9012 3456"
                   />
                   {user?.nationalId && (
@@ -549,10 +557,11 @@ export default function PersonalInfoPage() {
                   <input
                     type="email"
                     value={formData.email || ""}
+                    readOnly={!!user?.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2C8E5D] focus:border-[#2C8E5D] text-gray-900 placeholder-gray-400 ${
                       errors.email ? "border-red-300" : "border-gray-300"
-                    }`}
+                    } ${user?.email ? "bg-gray-50 cursor-not-allowed" : ""}`}
                     placeholder="your.email@example.com"
                   />
                   {errors.email && (
@@ -584,9 +593,15 @@ export default function PersonalInfoPage() {
                     }`}
                     title="Select your province"
                   >
-                    <option value="" className="text-gray-400">Select province</option>
+                    <option value="" className="text-gray-400">
+                      Select province
+                    </option>
                     {provinces.map((province) => (
-                      <option key={province} value={province} className="text-gray-900">
+                      <option
+                        key={province}
+                        value={province}
+                        className="text-gray-900"
+                      >
                         {province}
                       </option>
                     ))}
@@ -712,7 +727,9 @@ export default function PersonalInfoPage() {
                     }`}
                     title="Select relationship to emergency contact"
                   >
-                    <option value="" className="text-gray-400">Select relationship</option>
+                    <option value="" className="text-gray-400">
+                      Select relationship
+                    </option>
                     {relationships.map((rel) => (
                       <option key={rel} value={rel} className="text-gray-900">
                         {rel}
@@ -774,7 +791,6 @@ export default function PersonalInfoPage() {
                 </div>
               </div>
             </div>
-
 
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-6 border-t border-gray-200">

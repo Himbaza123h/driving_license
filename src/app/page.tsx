@@ -4,6 +4,7 @@ import Stats from "@/components/Stats";
 import Process from "@/components/Process";
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 
 export default function Home() {
   return (
@@ -12,6 +13,7 @@ export default function Home() {
       <About />
       <Stats />
       <Process />
+      <Toaster position="top-right" />
 
       {/* Ready to Get Started Section */}
       <section className="py-20 px-4 bg-white">

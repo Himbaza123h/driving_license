@@ -273,7 +273,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
       setAcceptTerms(false);
       setTimeout(() => {
     router.push('/dashboard');
-  }, 2000);
+  }, 5000); // Redirect to dashboard after 5 seconds
     } catch (error: unknown) {
       console.log("Signup error in component:", error); // Debug log
 
