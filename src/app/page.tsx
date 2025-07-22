@@ -13,7 +13,7 @@ export default function Home() {
       <About />
       <Stats />
       <Process />
-      <Toaster position="top-right" />
+      
 
       {/* Ready to Get Started Section */}
       <section className="py-20 px-4 bg-white">
