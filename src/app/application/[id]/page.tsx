@@ -420,11 +420,15 @@ const ApplicationDetailsPage: React.FC = () => {
   const shouldShowQRCode = () => {
     if (!application?.qrCode) return false;
 
+    // If application if not picked up
+
+    if (!application.pickedUp) return false;
+
     // Admin can always see QR code
-    if (isAdmin) return true;
+    if (isAdmin && application.pickedUp && application.status?.toLowerCase() === "approved") return true;
 
     // User can only see QR code if application is approved
-    if (isUser && application.status?.toLowerCase() === "approved") return true;
+    if (isUser && application.status?.toLowerCase() === "approved" && application.pickedUp) return true;
 
     return false;
   };
@@ -923,6 +927,7 @@ const ApplicationDetailsPage: React.FC = () => {
 
                     {/* QR Code Information */}
                     <div className="space-y-4">
+                      {application.status?.toLowerCase() === "approved" && application.pickedUp && (
                       <div>
                         <label className="block text-sm font-inter font-medium text-gray-500">
                           License Number
@@ -931,6 +936,7 @@ const ApplicationDetailsPage: React.FC = () => {
                           {application.qrCode.licenseNumber}
                         </p>
                       </div>
+                      )}
                       <div>
                         <label className="block text-sm font-inter font-medium text-gray-500">
                           Holder Name

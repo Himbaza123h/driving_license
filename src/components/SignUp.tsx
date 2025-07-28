@@ -1,6 +1,5 @@
 "use client";
 import React, { useState } from "react";
-import { useRouter } from 'next/navigation';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faEye,
@@ -11,13 +10,13 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "@/contexts/AuthContext";
 
+
 interface SignUpProps {
   onSwitchToSignIn: () => void;
 }
 
 const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
 
-  const router = useRouter();
   
   const [formData, setFormData] = useState({
     name: "",
@@ -38,9 +37,9 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
   // Validation functions
   const validateName = (name: string) => {
     if (!name) return { isValid: false, message: "" };
-    if (name.length < 2)
+    if (name.trim().length < 2)
       return { isValid: false, message: "Name must be at least 2 characters" };
-    if (!/^[a-zA-Z\s]+$/.test(name))
+    if (!/^[a-zA-Z\s]+$/.test(name.trim()))
       return {
         isValid: false,
         message: "Name can only contain letters and spaces",
@@ -51,24 +50,25 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
   const validateEmail = (email: string) => {
     if (!email) return { isValid: false, message: "" };
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email))
+    if (!emailRegex.test(email.trim()))
       return { isValid: false, message: "Please enter a valid email address" };
     return { isValid: true, message: "" };
   };
 
   const validateNationalId = (nationalId: string) => {
     if (!nationalId) return { isValid: false, message: "" };
-    if (!/^[0-9]+$/.test(nationalId))
+    const cleanId = nationalId.replace(/\s+/g, '');
+    if (!/^[0-9]+$/.test(cleanId))
       return {
         isValid: false,
         message: "National ID must contain only numbers",
       };
-    if (nationalId.length < 16)
+    if (cleanId.length < 16)
       return {
         isValid: false,
         message: "National ID must be at least 16 digits",
       };
-    if (nationalId.length > 16)
+    if (cleanId.length > 16)
       return { isValid: false, message: "National ID cannot exceed 16 digits" };
     return { isValid: true, message: "" };
   };
@@ -176,11 +176,16 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
   };
 
   const validateForm = (): boolean => {
+    // Clear previous errors
+    setError("");
+
+    // Check if all fields are filled
     if (
-      !formData.name ||
-      !formData.email ||
-      !formData.nationalId ||
+      !formData.name.trim() ||
+      !formData.email.trim() ||
+      !formData.nationalId.trim() ||
       !formData.phoneNumber ||
+      formData.phoneNumber === "+257 " ||
       !formData.password ||
       !formData.confirmPassword
     ) {
@@ -199,32 +204,32 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
       formData.password
     );
 
-    if (!nameValidation.isValid) {
+    if (!nameValidation.isValid && nameValidation.message) {
       setError(nameValidation.message);
       return false;
     }
 
-    if (!emailValidation.isValid) {
+    if (!emailValidation.isValid && emailValidation.message) {
       setError(emailValidation.message);
       return false;
     }
 
-    if (!nationalIdValidation.isValid) {
+    if (!nationalIdValidation.isValid && nationalIdValidation.message) {
       setError(nationalIdValidation.message);
       return false;
     }
 
-    if (!phoneValidation.isValid) {
+    if (!phoneValidation.isValid && phoneValidation.message) {
       setError(phoneValidation.message);
       return false;
     }
 
-    if (!passwordValidation.isValid) {
+    if (!passwordValidation.isValid && passwordValidation.message) {
       setError(passwordValidation.message);
       return false;
     }
 
-    if (!confirmPasswordValidation.isValid) {
+    if (!confirmPasswordValidation.isValid && confirmPasswordValidation.message) {
       setError(confirmPasswordValidation.message);
       return false;
     }
@@ -237,31 +242,69 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
 
-    if (!validateForm()) return;
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  console.log("🚀 HANDLESUBMIT START");
+  
+  e.preventDefault();
+  setError("");
+  setSuccess("");
 
-    setIsLoading(true);
+  if (!validateForm()) {
+    console.log("❌ Form validation failed");
+    return;
+  }
 
-    try {
-      console.log("Attempting to sign up..."); // Debug log
-      await signUp(
-        formData.email,
-        formData.password,
-        formData.name,
-        formData.nationalId,
-        formData.phoneNumber
-      );
-      console.log("Signup successful"); // Debug log
+  setIsLoading(true);
 
-      setSuccess(
-        "Account created successfully! Please check your email for verification."
-      );
+  try {
+    console.log("📤 Attempting to sign up with form data:", {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      nationalId: formData.nationalId.trim(),
+      phoneNumber: formData.phoneNumber,
+      password: "***"
+    });
+
+    console.log("🔄 Calling signUp function...");
+    const result = await signUp(
+      formData.email.trim(),
+      formData.password,
+      formData.name.trim(),
+      formData.nationalId.trim(),
+      formData.phoneNumber
+    );
+    
+    console.log("📥 signUp function returned:");
+    console.log("📥 Type:", typeof result);
+    console.log("📥 Value:", result);
+    console.log("📥 JSON stringified:", JSON.stringify(result, null, 2));
+
+    // Better null/undefined checking
+    if (!result) {
+      console.error("❌ signUp function returned null/undefined");
+      console.error("❌ This should never happen - check signUp function");
+      setError("No response received from server. Please try again.");
+      return;
+    }
+
+    // Check the exact type and properties
+    console.log("🔍 Result analysis:");
+    console.log("🔍 result.success:", result.success);
+    console.log("🔍 result.success type:", typeof result.success);
+    console.log("🔍 result.success === true:", result.success === true);
+
+    // Check if result has success property and it's true
+    if (result.success === true) {
+      console.log("✅ Success condition met");
+      const successMessage = result.message || 
+        "Account created successfully! Please check your email for verification before you can log in.";
+      
+      console.log("📝 Setting success message:", successMessage);
+      setSuccess(successMessage);
 
       // Reset form
+      console.log("🔄 Resetting form...");
       setFormData({
         name: "",
         email: "",
@@ -271,24 +314,39 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
         confirmPassword: "",
       });
       setAcceptTerms(false);
+      
+      // Show success message and switch to sign in after 3 seconds
+      console.log("⏰ Setting timeout for redirect...");
       setTimeout(() => {
-    router.push('/dashboard');
-  }, 5000); // Redirect to dashboard after 5 seconds
-    } catch (error: unknown) {
-      console.log("Signup error in component:", error); // Debug log
-
-      // Handle different types of errors
-      if (error instanceof Error) {
-        console.log("Setting error message:", error.message); // Debug log
-        setError(error.message);
-      } else {
-        console.log("Setting generic error message"); // Debug log
-        setError("An unexpected error occurred. Please try again.");
-      }
-    } finally {
-      setIsLoading(false);
+        console.log("🔀 Switching to sign in...");
+        onSwitchToSignIn();
+      }, 3000);
+    } else {
+      // Handle failure case
+      const errorMessage = result.error || "Failed to create account. Please try again.";
+      console.error("❌ Signup failed:", errorMessage);
+      console.error("❌ Full result:", JSON.stringify(result, null, 2));
+      setError(errorMessage);
     }
-  };
+  } catch (error: unknown) {
+    console.error("❌ Signup error in component:", error);
+    console.error("❌ Error type:", typeof error);
+    console.error("❌ Error constructor:", error?.constructor?.name);
+
+    // Handle different types of errors
+    if (error instanceof Error) {
+      console.error("❌ Error message:", error.message);
+      console.error("❌ Error stack:", error.stack);
+      setError(error.message);
+    } else {
+      console.error("❌ Unknown error type:", error);
+      setError("An unexpected error occurred. Please try again.");
+    }
+  } finally {
+    console.log("🏁 HANDLESUBMIT END");
+    setIsLoading(false);
+  }
+};
 
   const getPasswordStrength = () => {
     const password = formData.password;
@@ -339,7 +397,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
             htmlFor="name"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Full Name
+            Full Name *
           </label>
           <div className="relative">
             <input
@@ -370,7 +428,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
               </div>
             )}
           </div>
-          {formData.name && !nameValidation.isValid && (
+          {formData.name && !nameValidation.isValid && nameValidation.message && (
             <p className="mt-1 text-sm text-red-600">
               {nameValidation.message}
             </p>
@@ -385,7 +443,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
             htmlFor="email"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Email Address
+            Email Address *
           </label>
           <div className="relative">
             <input
@@ -416,7 +474,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
               </div>
             )}
           </div>
-          {formData.email && !emailValidation.isValid && (
+          {formData.email && !emailValidation.isValid && emailValidation.message && (
             <p className="mt-1 text-sm text-red-600">
               {emailValidation.message}
             </p>
@@ -431,7 +489,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
             htmlFor="nationalId"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            National ID
+            National ID *
           </label>
           <div className="relative">
             <input
@@ -464,14 +522,14 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
               </div>
             )}
           </div>
-          {formData.nationalId && !nationalIdValidation.isValid && (
+          {formData.nationalId && !nationalIdValidation.isValid && nationalIdValidation.message && (
             <p className="mt-1 text-sm text-red-600">
               {nationalIdValidation.message}
             </p>
           )}
           {formData.nationalId && nationalIdValidation.isValid && (
             <p className="mt-1 text-sm text-green-600">
-              ✓ Valid National ID ({formData.nationalId.length} digits)
+              ✓ Valid National ID ({formData.nationalId.replace(/\s+/g, '').length} digits)
             </p>
           )}
         </div>
@@ -481,7 +539,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
             htmlFor="phoneNumber"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Phone Number
+            Phone Number *
           </label>
           <div className="relative">
             <input
@@ -515,7 +573,8 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
           </div>
           {formData.phoneNumber &&
             formData.phoneNumber !== "+257 " &&
-            !phoneValidation.isValid && (
+            !phoneValidation.isValid && 
+            phoneValidation.message && (
               <p className="mt-1 text-sm text-red-600">
                 {phoneValidation.message}
               </p>
@@ -530,7 +589,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
             htmlFor="password"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Password
+            Password *
           </label>
           <div className="relative">
             <input
@@ -575,7 +634,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
               </button>
             </div>
           </div>
-          {formData.password && !passwordValidation.isValid && (
+          {formData.password && !passwordValidation.isValid && passwordValidation.message && (
             <p className="mt-1 text-sm text-red-600">
               {passwordValidation.message}
             </p>
@@ -615,7 +674,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
             htmlFor="confirmPassword"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Confirm Password
+            Confirm Password *
           </label>
           <div className="relative">
             <input
@@ -660,7 +719,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSwitchToSignIn }) => {
               </button>
             </div>
           </div>
-          {formData.confirmPassword && !confirmPasswordValidation.isValid && (
+          {formData.confirmPassword && !confirmPasswordValidation.isValid && confirmPasswordValidation.message && (
             <p className="mt-1 text-sm text-red-600">
               {confirmPasswordValidation.message}
             </p>

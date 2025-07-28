@@ -186,6 +186,60 @@ export const sendApplicationStatusEmail = async (
   }
 };
 
+
+// Add this new function in emailService.js
+export const sendVerificationEmail = async (email, token, userId) => {
+  try {
+    const transporter = createTransporter();
+    
+    const verificationUrl = `http://localhost:3000/verify-email?token=${token}&userId=${userId}`;
+    
+    const mailOptions = {
+      from: `"License Management System" <no-reply@dlvburundi.com>`,
+      to: email,
+      subject: 'Verify Your Email Address',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Email Verification</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">Verify Your Email</h1>
+            </div>
+            
+            <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-radius: 0 0 10px 10px;">
+              <h2>Welcome!</h2>
+              <p>Please verify your email address by clicking the button below:</p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${verificationUrl}" style="background: #10B981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                  Verify Email Address
+                </a>
+              </div>
+              
+              <p style="color: #666; font-size: 14px;">This link will expire in 24 hours.</p>
+            </div>
+          </body>
+        </html>
+      `,
+      text: `
+        Welcome! Please verify your email address by visiting: ${verificationUrl}
+        This link will expire in 24 hours.
+      `
+    };
+    
+    const info = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: info.messageId };
+    
+  } catch (error) {
+    console.error('Error sending verification email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Batch email function
 export const sendBatchApplicationStatusEmails = async (
   applications: ApplicationData[], 
