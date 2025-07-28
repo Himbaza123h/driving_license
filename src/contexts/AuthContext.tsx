@@ -31,7 +31,7 @@ interface AuthContextType {
     name: string,
     nationalId?: string,
     phoneNumber?: string
-  ) => Promise<void>;
+  ) => Promise<{success: boolean; message?: string; error?: string}>;
   signInWithGoogle: () => Promise<void>;
   signInWithNationalId: (nationalIdData: NationalIdData) => Promise<void>;
   signOut: () => Promise<void>;
@@ -41,6 +41,8 @@ interface AuthContextType {
     access_token: string,
     refresh_token: string
   ) => Promise<void>;
+  sendVerificationEmail: (email: string, userId: string) => Promise<{success: boolean; error?: string}>;
+  resendVerificationEmail: () => Promise<{success: boolean; error?: string}>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -88,86 +90,110 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  const signIn = async (emailOrPhone: string, password: string) => {
-    console.log("AuthContext: Starting sign in process for:", emailOrPhone);
 
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ emailOrPhone, password }),
-      });
+const signIn = async (emailOrPhone: string, password: string) => {
+  console.log("🚀 AuthContext: Starting sign in process for:", emailOrPhone);
 
-      const result = await response.json();
-      console.log("AuthContext: API Response status:", response.status);
-      console.log("AuthContext: API Response data:", result);
+  try {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ emailOrPhone, password }),
+    });
 
-      if (!response.ok) {
-        console.log("AuthContext: Login failed with status:", response.status);
-        console.log("AuthContext: Error message:", result.error);
+    console.log("📡 AuthContext: API Response status:", response.status);
+    console.log("📡 AuthContext: API Response headers:", Object.fromEntries(response.headers.entries()));
 
-        // Handle specific error cases
-        if (response.status === 401) {
-          throw new Error(
-            "Unverified, invalid email/phone or password \n Please check you email and verify"
-          );
-        } else if (response.status === 404) {
-          throw new Error("Account not found");
-        } else if (response.status === 429) {
-          throw new Error("Too many login attempts. Please try again later.");
-        } else if (response.status >= 500) {
-          throw new Error("Server error. Please try again later.");
+    const result = await response.json();
+    console.log("📋 AuthContext: API Response data:", result);
+
+    if (!response.ok) {
+      console.log("❌ AuthContext: Login failed with status:", response.status);
+      console.log("❌ AuthContext: Error message:", result.error);
+
+      // Handle specific error cases with more detailed messages
+      if (response.status === 401) {
+        // Check if it's specifically an email verification issue
+        if (result.error?.includes('verify') || result.error?.includes('verification') || result.error?.includes('Email not confirmed')) {
+          throw new Error("Please verify your email address before signing in. Check your inbox (including spam folder) for a verification link.");
+        } else if (result.error?.includes('Password incorrect')) {
+          throw new Error("Incorrect password. Please try again.");
+        } else {
+          // Generic 401 error
+          throw new Error(result.error || "Invalid email/phone or password. Please check your credentials.");
         }
-
-        // Throw error with the specific message from the API
-        throw new Error(result.error || "Login failed");
+      } else if (response.status === 404) {
+        throw new Error("No account found with this email or phone number. Please check your details or sign up for a new account.");
+      } else if (response.status === 429) {
+        throw new Error("Too many login attempts. Please wait a few minutes and try again.");
+      } else if (response.status === 400) {
+        throw new Error(result.error || "Invalid input. Please check your email/phone and password.");
+      } else if (response.status >= 500) {
+        throw new Error("Server error. Please try again in a few moments.");
       }
 
-      // Create user object from API response
-      const userData: User = {
-        id: result.user.id,
-        email: result.user.email,
-        name:
-          result.profile?.full_name ||
-          result.user.email?.split("@")[0] ||
-          "User",
-        provider: "email",
-        nationalId: result.profile?.national_id || result.user.national_id,
-        roles: result.profile.roles || "user",
-      };
-
-      console.log("AuthContext: Setting user data:", userData);
-
-      setUser(userData);
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      // Store session data if needed
-      if (result.session) {
-        localStorage.setItem("session", JSON.stringify(result.session));
-      }
-
-      console.log("AuthContext: Sign in successful");
-    } catch (error) {
-      console.log("AuthContext: Sign in error:", error);
-
-      // Make sure to clear any loading states or partial data
-      setUser(null);
-      localStorage.removeItem("user");
-      localStorage.removeItem("session");
-
-      // Handle network errors
-      if (error instanceof TypeError && error.message.includes("fetch")) {
-        throw new Error(
-          "Network error. Please check your connection and try again."
-        );
-      }
-
-      // Re-throw the error so the component can handle it
-      throw error;
+      // Throw error with the specific message from the API
+      throw new Error(result.error || "Login failed. Please try again.");
     }
-  };
+
+    console.log("✅ AuthContext: API call successful, processing user data");
+
+    // Create user object from API response
+    const userData: User = {
+      id: result.user.id,
+      email: result.user.email,
+      name:
+        result.profile?.full_name ||
+        result.user.email?.split("@")[0] ||
+        "User",
+      provider: "email",
+      nationalId: result.profile?.national_id || result.user.national_id,
+      roles: result.profile?.roles || "user",
+    };
+
+    console.log("👤 AuthContext: Setting user data:", {
+      id: userData.id,
+      email: userData.email,
+      name: userData.name,
+      provider: userData.provider,
+      roles: userData.roles
+    });
+
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+
+    // Store session data if needed
+    if (result.session) {
+      console.log("💾 AuthContext: Storing session data");
+      localStorage.setItem("session", JSON.stringify(result.session));
+    }
+
+    console.log("✅ AuthContext: Sign in completed successfully");
+  } catch (error) {
+    console.log("💥 AuthContext: Sign in error:", {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      type: typeof error,
+      error: error
+    });
+
+    // Make sure to clear any loading states or partial data
+    setUser(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("session");
+
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      throw new Error(
+        "Network error. Please check your internet connection and try again."
+      );
+    }
+
+    // Re-throw the error so the component can handle it
+    throw error;
+  }
+};
 
   const signUp = async (
     email: string,
@@ -176,7 +202,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     nationalId?: string,
     phoneNumber?: string
   ) => {
+    console.log("🚀 TYPESCRIPT SIGNUP FUNCTION START");
+    
     try {
+      console.log("📤 Sending signup request with:", {
+        fullName: name,
+        email,
+        nationalId,
+        phoneNumber,
+        password: "***"
+      });
+
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: {
@@ -191,39 +227,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }),
       });
 
+      console.log("📡 Response status:", response.status, "ok:", response.ok);
+
       const result = await response.json();
+      console.log("📋 API Response:", result);
 
       if (!response.ok) {
+        console.log("❌ Response not ok");
         // Handle specific error cases with proper error messages
         if (response.status === 409) {
           // Pass through the specific error message from the server
-          throw new Error(
-            result.error || "An account with this information already exists"
-          );
+          const errorResult = {
+            success: false,
+            error: result.error || "An account with this information already exists"
+          };
+          console.log("🔙 Returning 409 error:", errorResult);
+          return errorResult;
         } else if (response.status === 400) {
-          throw new Error(result.error || "Invalid registration data");
+          const errorResult = {
+            success: false,
+            error: result.error || "Invalid registration data"
+          };
+          console.log("🔙 Returning 400 error:", errorResult);
+          return errorResult;
         } else if (response.status >= 500) {
-          throw new Error("Server error. Please try again later.");
+          const errorResult = {
+            success: false,
+            error: "Server error. Please try again later."
+          };
+          console.log("🔙 Returning 500 error:", errorResult);
+          return errorResult;
         }
 
-        throw new Error(result.error || "Signup failed");
+        const errorResult = {
+          success: false,
+          error: result.error || "Signup failed"
+        };
+        console.log("🔙 Returning general error:", errorResult);
+        return errorResult;
       }
 
-      console.log("Signup successful:", result.message);
+      console.log("✅ Signup successful:", result.message);
 
-      // If you want to auto-login after signup, you can do:
-      // await signIn(email, password);
+      // FIXED: Return the success result instead of void
+      const successResult = {
+        success: true,
+        message: result.message || "Account created successfully! Please check your email for verification."
+      };
+      console.log("🔙 Returning success result:", successResult);
+      console.log("🏁 TYPESCRIPT SIGNUP FUNCTION END - SUCCESS");
+      return successResult;
+
     } catch (error) {
-      console.log("Sign up error:", error);
+      console.log("❌ Sign up error:", error);
 
       // Handle network errors
       if (error instanceof TypeError && error.message.includes("fetch")) {
-        throw new Error(
-          "Network error. Please check your connection and try again."
-        );
+        const networkErrorResult = {
+          success: false,
+          error: "Network error. Please check your connection and try again."
+        };
+        console.log("🔙 Returning network error:", networkErrorResult);
+        console.log("🏁 TYPESCRIPT SIGNUP FUNCTION END - NETWORK ERROR");
+        return networkErrorResult;
       }
 
-      throw error; // Re-throw to be handled by the component
+      const unknownErrorResult = {
+        success: false,
+        error: error instanceof Error ? error.message : "An unexpected error occurred"
+      };
+      console.log("🔙 Returning unknown error:", unknownErrorResult);
+      console.log("🏁 TYPESCRIPT SIGNUP FUNCTION END - UNKNOWN ERROR");
+      return unknownErrorResult;
     }
   };
 
@@ -237,6 +312,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         email: "user@gmail.com",
         name: "Google User",
         provider: "google",
+        roles: "user"
       };
 
       setUser(mockUser);
@@ -258,6 +334,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         provider: "national-id",
         nationalId: nationalIdData.nationalId,
         nationalIdData,
+        roles: "user"
       };
 
       setUser(mockUser);
@@ -384,6 +461,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+const sendVerificationEmail = async (email: string, userId: string) => {
+  try {
+    const response = await fetch('/api/auth/send-verification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, userId }),
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to send verification email');
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending verification email:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+};
+
+const resendVerificationEmail = async () => {
+  if (!user) {
+    return {
+      success: false,
+      error: 'No user found',
+    };
+  }
+
+  return sendVerificationEmail(user.email, user.id);
+};
+
   const signOut = async () => {
     try {
       setUser(null);
@@ -418,6 +532,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         signOut,
         forgotPassword,
         resetPassword,
+        sendVerificationEmail,
+        resendVerificationEmail,
+
       }}
     >
       {children}

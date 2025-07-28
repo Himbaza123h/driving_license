@@ -71,7 +71,7 @@ const ConditionalLayout: React.FC<ConditionalLayoutProps> = ({ children }) => {
     );
   }
   // For unauthenticated users, only show home header/footer on public pages
-  const publicPages = ["/", "/auth"];
+  const publicPages = ["/", "/auth", "/verify-email","/email-verification"];
   const isPublicPage = publicPages.includes(pathname || "");
 
   if (!isPublicPage) {
